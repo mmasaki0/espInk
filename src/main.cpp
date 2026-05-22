@@ -1,4 +1,7 @@
 #include <Arduino.h>
+#include <SPI.h>
+
+#include <SD.h>
 
 #include <GxEPD2_BW.h>
 #include <Fonts/FreeMono12pt7b.h>
@@ -24,11 +27,21 @@ WebServer server(80);
 
 GxEPD2_BW<GxEPD2_370_GDEY037T03, GxEPD2_370_GDEY037T03::HEIGHT> display(GxEPD2_370_GDEY037T03(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
 
+
+
 BluetoothSerial SerialBT;
 BluetoothA2DPSource a2dp;
 
 void setup() {
   Serial.begin(115200);
+  SPI.begin(18, 19, 23, 27);
+  if(!SD.begin(27)) {
+    Serial.println("Error during SD.");
+    return;
+  }
+
+
+  
 
   //begins file system, stops setup() if fails
   if(!LittleFS.begin(true)) {
@@ -74,6 +87,8 @@ void setup() {
     Serial.printf("stopped scanning");
   }
 
+  
+
   //eink display
   display.init(115200);
   delay(1000);
@@ -92,10 +107,33 @@ void setup() {
   display.firstPage();
     do {
       display.setCursor(100, 100);
-      display.print(localIP);
+      display.println(localIP);
     } while (display.nextPage());
+
+  String songsList = "";
+
+  File dirLibrary = SD.open("/library/ARIRANG");
+  while(true) {
+    File entry = dirLibrary.openNextFile();
+    if(!entry) {
+      break;
+    }
+    songsList += entry.name();
+  }
+
+
+  display.getTextBounds(songsList, 100, 120, &x1, &y1, &w, &h);
+  display.setPartialWindow(x1, y1, w, h);
+  display.firstPage();
+    do {
+      display.setCursor(100, 120);
+      display.println(songsList);
+    } while (display.nextPage());
+
   display.hibernate();
 }
+
+
 
 void loop() {
   server.handleClient();
