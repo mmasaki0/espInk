@@ -7,6 +7,9 @@
 #include <BluetoothSerial.h>
 #include <BluetoothA2DPSource.h>
 
+#include <Wifi.h>
+#include <WebServer.h>
+
 #define EPD_BUSY 4
 #define EPD_RST 16
 #define EPD_DC 17
