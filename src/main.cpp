@@ -9,6 +9,7 @@
 
 #include <Wifi.h>
 #include <WebServer.h>
+#include <config.h>
 
 #define EPD_BUSY 4
 #define EPD_RST 16
@@ -26,7 +27,17 @@ void btDeviceFound(BTAdvertisedDevice *device) {
 
 void setup() {
   Serial.begin(115200);
+
   SerialBT.begin("ESP32", true);
+
+  WiFi.begin(SSID, Password);
+  while(WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.print(WiFi.localIP());
+
+
   //bluetooth scan
   if(SerialBT.discoverAsync(btDeviceFound, 10000)) {
     Serial.printf("started scanning");
