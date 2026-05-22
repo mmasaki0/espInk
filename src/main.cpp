@@ -44,7 +44,8 @@ void setup() {
     delay(500);
     Serial.print(".");
   }
-  Serial.print(WiFi.localIP());
+
+  const String localIP = WiFi.localIP().toString();
 
   server.on("/", []() {
     Serial.println("connected to webserver");
@@ -84,14 +85,14 @@ void setup() {
   display.setTextColor(GxEPD_BLACK);
   display.setFont(&FreeMonoBold9pt7b);
 
-  display.getTextBounds("yo", 100, 100, &x1, &y1, &w, &h);
+  display.getTextBounds(localIP, 100, 100, &x1, &y1, &w, &h);
 
   display.setPartialWindow(x1, y1, w, h);
 
   display.firstPage();
     do {
       display.setCursor(100, 100);
-      display.print("yo");
+      display.print(localIP);
     } while (display.nextPage());
   display.hibernate();
 }
