@@ -9,6 +9,8 @@
 
 #include <Wifi.h>
 #include <WebServer.h>
+#include "FS.h"
+#include <LittleFS.h>
 #include <config.h>
 
 #define EPD_BUSY 4
@@ -16,20 +18,27 @@
 #define EPD_DC 17
 #define EPD_CS 5
 
+#define FORMAT_LITTLEFS_IF_FAILED true
+
+WebServer server(80);
+
 GxEPD2_BW<GxEPD2_370_GDEY037T03, GxEPD2_370_GDEY037T03::HEIGHT> display(GxEPD2_370_GDEY037T03(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
 
 BluetoothSerial SerialBT;
 BluetoothA2DPSource a2dp;
 
-void btDeviceFound(BTAdvertisedDevice *device) {
-  Serial.printf(device->getName().c_str());
-}
-
 void setup() {
   Serial.begin(115200);
 
+  //begins file system, stops setup() if fails
+  if(!LittleFS.begin(true)) {
+    Serial.println("Error during LittleFS mount.");
+    return;
+  }
+
   SerialBT.begin("ESP32", true);
 
+  //wifi and webserver 
   WiFi.begin(SSID, Password);
   while(WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -37,10 +46,29 @@ void setup() {
   }
   Serial.print(WiFi.localIP());
 
+  server.on("/", []() {
+    Serial.println("connected to webserver");
+    if(LittleFS.exists("/index.html")) {
+      Serial.println("found index");
+      File fileIndex = LittleFS.open("/index.html", "r");
+      server.streamFile(fileIndex, "text/html");
+      fileIndex.close();
+    } else {
+      Serial.println("did not find index");
+    }
+  });
+
+  server.onNotFound([]() {
+    Serial.println("webserver not found");
+    server.send(404, "text/plain", "Not found");
+  });
+
+  server.begin();
 
   //bluetooth scan
-  if(SerialBT.discoverAsync(btDeviceFound, 10000)) {
+  if(SerialBT.discoverAsync([](BTAdvertisedDevice *device) {Serial.printf(device->getName().c_str());})) {
     Serial.printf("started scanning");
+    delay(10000);
     SerialBT.discoverAsyncStop();
     Serial.printf("stopped scanning");
   }
@@ -64,9 +92,10 @@ void setup() {
     do {
       display.setCursor(100, 100);
       display.print("yo");
-    } while (display.nextPage()); // Automatically renders and flushes over SPI
+    } while (display.nextPage());
   display.hibernate();
 }
 
 void loop() {
+  server.handleClient();
 }
