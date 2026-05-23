@@ -49,7 +49,7 @@ void dataCallback(MP3FrameInfo &info, int16_t *pcm_buffer, size_t len, void* use
 
 libhelix::MP3DecoderHelix decoder(dataCallback);
 
-uint8_t mp3ChunkBuffer[512];
+uint8_t mp3ChunkBuffer[1024];
 
 Task taskScreen("screen", 1024 * 2, 5, 0);
 
@@ -91,6 +91,7 @@ void setup() {
 
   Serial.println("Starting bluetooth");
   a2dp_source.set_data_callback(get_sound_data);
+  a2dp_source.reconnect();
   a2dp_source.start("hachiware - Find My");
 
   while(!a2dp_source.is_connected()) {
@@ -102,7 +103,7 @@ void setup() {
 
 void loop() {
   if(bufferProcessed.availableForWrite() >= 4608) {
-    size_t bytesRead = song1.read(mp3ChunkBuffer, 512);
+    size_t bytesRead = song1.read(mp3ChunkBuffer, 1024);
     if(bytesRead > 0) {
       decoder.write(mp3ChunkBuffer, bytesRead);
     }
