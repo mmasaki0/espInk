@@ -36,22 +36,25 @@ GxEPD2_BW<GxEPD2_370_GDEY037T03, GxEPD2_370_GDEY037T03::HEIGHT> display(GxEPD2_3
 
 BluetoothSerial SerialBT;
 BluetoothA2DPSource a2dp_source;
+using namespace libhelix;
 
 BufferRTOS<uint8_t> bufferProcessed(1024 * 8);
-QueueStream<uint8_t> queueProcessed(bufferProcessed);
 
 File song1;
 
-//song -> queueEncoded -> decoder -> resampler -> queueProcessed
-ResampleStream resampler(queueProcessed);
-EncodedAudioStream decoder(&song1, new MP3DecoderHelix());
-StreamCopy copierPipelineToQueue(queueProcessed, decoder);
+void dataCallback(MP3FrameInfo &info, int16_t *pcm_buffer, size_t len, void* user_data) {
+  // len is in samples (int16_t). Multiply by 2 to get bytes.
+  bufferProcessed.writeArray((uint8_t*)pcm_buffer, len * 2);
+}
+
+libhelix::MP3DecoderHelix decoder(dataCallback);
+
+uint8_t mp3ChunkBuffer[512];
 
 Task taskScreen("screen", 1024 * 2, 5, 0);
-Task taskPipelineToQueue("PipelineToQueue", 1024 * 2, 10, 1);
 
 int32_t get_sound_data(uint8_t* data, int32_t size) {
-  int32_t result = queueProcessed.readBytes((uint8_t*)data, size);
+  int32_t result = bufferProcessed.readArray((uint8_t*)data, size);
   vTaskDelay(pdMS_TO_TICKS(1));
   return(result);
 }
@@ -69,7 +72,6 @@ void setup() {
   song1 = SD.open("/library/ARIRANG/SWIM.mp3");
 
   Serial.println("Starting decoder");
-  decoder.transformationReader().resizeResultQueue(1024 * 6);
   if (!decoder.begin()) {
     Serial.println("decoder failed");
     stop();
@@ -81,21 +83,11 @@ void setup() {
   // rcfg.sample_rate = 44100;
   // resampler.begin(rcfg);
 
-  Serial.println("Starting queues");
-  queueProcessed.begin();
+  // Serial.println("Starting queues");
+  // queueProcessed.begin();
 
   //audio pipeline
   Serial.println("starting audio pipeline task");
-  
-  taskPipelineToQueue.begin([](){
-    if (queueProcessed.availableForWrite() > 4608) {
-      copierPipelineToQueue.copy();
-    } else {
-      vTaskDelay(pdMS_TO_TICKS(2));
-    }
-  });
-
-  Serial.println((double)decoder.audioInfo().sample_rate);
 
   Serial.println("Starting bluetooth");
   a2dp_source.set_data_callback(get_sound_data);
@@ -105,6 +97,19 @@ void setup() {
     vTaskDelay(pdMS_TO_TICKS(1000));
     Serial.print(".");
   }
+
+}
+
+void loop() {
+  if(bufferProcessed.availableForWrite() >= 4608) {
+    size_t bytesRead = song1.read(mp3ChunkBuffer, 512);
+    if(bytesRead > 0) {
+      decoder.write(mp3ChunkBuffer, bytesRead);
+    }
+  }
+  delay(1);
+}
+
 
   // //begins file system, stops setup() if fails
   // if(!LittleFS.begin(true)) {
@@ -156,7 +161,7 @@ void setup() {
   // display.hibernate();
  
 
-}
+// }
 
   // int16_t x1, y1;
   // uint16_t w, h;
@@ -199,6 +204,6 @@ void setup() {
 
 
 
-void loop() {
-  // server.handleClient();
-}
+// void loop() {
+//   // server.handleClient();
+// }
