@@ -35,29 +35,30 @@ GxEPD2_BW<GxEPD2_370_GDEY037T03, GxEPD2_370_GDEY037T03::HEIGHT> display(GxEPD2_3
 BluetoothSerial SerialBT;
 BluetoothA2DPSource a2dp_source;
 
-BufferRTOS<uint8_t> bufferProcessed(1024 * 8);
+uint16_t bufferProcessedSize = 1024 * 8;
+BufferRTOS<uint8_t> bufferProcessed(bufferProcessedSize);
 QueueStream<uint8_t> streamProcessed(bufferProcessed);
 
 File song1;
 
-ResampleStream resampler(streamProcessed);
-// ResampleStreamT<LinearInterpolator> resampler(streamProcessed);
+// ResampleStream resampler(streamProcessed);
+ResampleStreamT<ParabolicInterpolator> resampler(streamProcessed);
 MP3DecoderHelix decoder(resampler);
 AudioInfo resamplerIn(48000, 2, 16);
 
-uint8_t mp3ChunkBuffer[2048];
+uint8_t mp3ChunkBuffer[1024*4];
 
 Task taskScreen("screen", 1024 * 2, 5, 0);
-Task taskAudioPipeline("audioPipeline", 1024 * 2, 5, 0);
+Task taskAudioPipeline("audioPipeline", 1024 * 2, 15, 1);
 
 int32_t get_sound_data(uint8_t* data, int32_t size) {
   // Serial.println("BT consuming");
   int32_t result = streamProcessed.readBytes((uint8_t*)data, size);
-  vTaskDelay(pdMS_TO_TICKS(1));
-  Serial.print(result); Serial.print(":"); Serial.print(size); Serial.print(" ");
+  // Serial.print(result); Serial.print(":"); Serial.print(size); Serial.print(":"); Serial.print(streamProcessed.available()); Serial.print(" ");
   if(result < size) {
     memset(data + result, 0, size-result);
   }
+  delay(1);
   return(size);
 }
 
@@ -85,10 +86,11 @@ void setup() {
 
   Serial.println("Starting resampler");
 
-  // auto rcfg = resampler.defaultConfig();
-  // rcfg.sample_rate = 48000;
-  // rcfg.to_sample_rate = 44100;
-  resampler.begin(resamplerIn, 44100);
+  auto rcfg = resampler.defaultConfig();
+  rcfg.sample_rate = 48000;
+  rcfg.to_sample_rate = 44100;
+  resampler.begin(rcfg);
+  // resampler.begin(resamplerIn, 44100);
 
   // resampler.
 
@@ -106,25 +108,42 @@ void setup() {
     Serial.print(".");
   }
 
+  // taskAudioPipeline.begin([](){
+  //   // if(bufferProcessed.availableForWrite() >= 4608) {
+  //     //Serial.print(bufferProcessed.availableForWrite()); Serial.println("availableForWrite");
+
+  //   // size_t bytesRead = 0;
+  //   // if(streamProcessed.availableForWrite() > 0.75*bufferProcessedSize) {
+  //   //   bytesRead = song1.read(mp3ChunkBufferA, 1024 * 2);
+  //   //   if(bytesRead > 0) {
+  //   //     decoder.write(mp3ChunkBufferA, bytesRead);
+  //   //   }
+  //   // } else {
+  //   //   bytesRead = song1.read(mp3ChunkBufferB, 1024 * 4);
+  //   //   if(bytesRead > 0) {
+  //   //     decoder.write(mp3ChunkBufferB, bytesRead);
+  //   //   }
+  //   // }
+
   taskAudioPipeline.begin([](){
+    // Serial.print(" rantask ");
     if(bufferProcessed.availableForWrite() >= 4608) {
-      //Serial.print(bufferProcessed.availableForWrite()); Serial.println("availableForWrite");
-      size_t bytesRead = song1.read(mp3ChunkBuffer, 2048);
+      size_t bytesRead = song1.read(mp3ChunkBuffer, 1024*4);
       if(bytesRead > 0) {
-        // Serial.println("WrittenTODecoder");
+        Serial.println(bytesRead);
         decoder.write(mp3ChunkBuffer, bytesRead);
-        // Serial.print(decoder.audioInfo().sample_rate);
       }
     }
-  vTaskDelay(1);
-  
   });
+
+
+  
+  // });
 
 }
 
 void loop() {
-  delay(100);
-  // Serial.println(bufferProcessed.availableForWrite());
+  delay(1);
 }
 
 
