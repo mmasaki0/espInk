@@ -40,25 +40,25 @@ QueueStream<uint8_t> streamProcessed(bufferProcessed);
 
 File song1;
 
-// void dataCallback(MP3FrameInfo &info, int16_t *pcm_buffer, size_t len, void* user_data) {
-//   // len is in samples (int16_t). Multiply by 2 to get bytes.
-//   bufferProcessed.writeArray((uint8_t*)pcm_buffer, len * 2);
-// }
-
 ResampleStream resampler(streamProcessed);
+// ResampleStreamT<LinearInterpolator> resampler(streamProcessed);
 MP3DecoderHelix decoder(resampler);
+AudioInfo resamplerIn(48000, 2, 16);
 
-
-
-uint8_t mp3ChunkBuffer[1024];
+uint8_t mp3ChunkBuffer[2048];
 
 Task taskScreen("screen", 1024 * 2, 5, 0);
+Task taskAudioPipeline("audioPipeline", 1024 * 2, 5, 0);
 
 int32_t get_sound_data(uint8_t* data, int32_t size) {
   // Serial.println("BT consuming");
   int32_t result = streamProcessed.readBytes((uint8_t*)data, size);
   vTaskDelay(pdMS_TO_TICKS(1));
-  return(result);
+  Serial.print(result); Serial.print(":"); Serial.print(size); Serial.print(" ");
+  if(result < size) {
+    memset(data + result, 0, size-result);
+  }
+  return(size);
 }
 
 void setup() {
@@ -71,12 +71,12 @@ void setup() {
   }
 
   Serial.println("Starting audio");
-  song1 = SD.open("/library/ARIRANG/SWIM.mp3");
+  song1 = SD.open("/library/ARIRANG/2.0.mp3");
 
   Serial.print("starting size "); Serial.println(streamProcessed.availableForWrite());
   streamProcessed.begin();
 
-  decoder.addNotifyAudioChange(resampler);
+
   Serial.println("Starting decoder");
   if (!decoder.begin()) {
     Serial.println("decoder failed");
@@ -84,16 +84,19 @@ void setup() {
   }
 
   Serial.println("Starting resampler");
-  resampler.setTargetSampleRate(44100);
-  resampler.begin();
 
-  // Serial.println("Starting queues");
-  // queueProcessed.begin();
+  // auto rcfg = resampler.defaultConfig();
+  // rcfg.sample_rate = 48000;
+  // rcfg.to_sample_rate = 44100;
+  resampler.begin(resamplerIn, 44100);
+
+  // resampler.
 
   //audio pipeline
   Serial.println("starting audio pipeline task");
 
   Serial.println("Starting bluetooth");
+  a2dp_source.set_volume(60);
   a2dp_source.set_data_callback(get_sound_data);
   a2dp_source.set_auto_reconnect(true);
   a2dp_source.start("hachiware - Find My");
@@ -103,20 +106,25 @@ void setup() {
     Serial.print(".");
   }
 
+  taskAudioPipeline.begin([](){
+    if(bufferProcessed.availableForWrite() >= 4608) {
+      //Serial.print(bufferProcessed.availableForWrite()); Serial.println("availableForWrite");
+      size_t bytesRead = song1.read(mp3ChunkBuffer, 2048);
+      if(bytesRead > 0) {
+        // Serial.println("WrittenTODecoder");
+        decoder.write(mp3ChunkBuffer, bytesRead);
+        // Serial.print(decoder.audioInfo().sample_rate);
+      }
+    }
+  vTaskDelay(1);
+  
+  });
+
 }
 
 void loop() {
-  if(bufferProcessed.availableForWrite() >= 4608) {
-    //Serial.print(bufferProcessed.availableForWrite()); Serial.println("availableForWrite");
-    size_t bytesRead = song1.read(mp3ChunkBuffer, 1024);
-    if(bytesRead > 0) {
-      // Serial.println("WrittenTODecoder");
-      decoder.write(mp3ChunkBuffer, bytesRead);
-    }
-  }
-  delay(1);
-  //Serial.println(decoder.audioInfo().sample_rate);
-
+  delay(100);
+  // Serial.println(bufferProcessed.availableForWrite());
 }
 
 
