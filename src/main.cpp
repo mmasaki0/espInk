@@ -45,7 +45,9 @@ File song1;
 //   bufferProcessed.writeArray((uint8_t*)pcm_buffer, len * 2);
 // }
 
-MP3DecoderHelix decoder(streamProcessed);
+ResampleStream resampler(streamProcessed);
+MP3DecoderHelix decoder(resampler);
+
 
 
 uint8_t mp3ChunkBuffer[1024];
@@ -74,17 +76,16 @@ void setup() {
   Serial.print("starting size "); Serial.println(streamProcessed.availableForWrite());
   streamProcessed.begin();
 
+  decoder.addNotifyAudioChange(resampler);
   Serial.println("Starting decoder");
   if (!decoder.begin()) {
     Serial.println("decoder failed");
     stop();
   }
 
-  // Serial.println("Starting resampler");
-  // auto rcfg = resampler.defaultConfig();
-  // rcfg.copyFrom(decoder.audioInfo());
-  // rcfg.sample_rate = 44100;
-  // resampler.begin(rcfg);
+  Serial.println("Starting resampler");
+  resampler.setTargetSampleRate(44100);
+  resampler.begin();
 
   // Serial.println("Starting queues");
   // queueProcessed.begin();
@@ -110,10 +111,12 @@ void loop() {
     size_t bytesRead = song1.read(mp3ChunkBuffer, 1024);
     if(bytesRead > 0) {
       // Serial.println("WrittenTODecoder");
-      // Serial.print("decoder write"); Serial.print(decoder.write(mp3ChunkBuffer, bytesRead));
+      decoder.write(mp3ChunkBuffer, bytesRead);
     }
   }
   delay(1);
+  //Serial.println(decoder.audioInfo().sample_rate);
+
 }
 
 
