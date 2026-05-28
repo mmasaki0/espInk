@@ -7,20 +7,15 @@
 #include <Fonts/FreeMono12pt7b.h>
 #include <Fonts/FreeMonoBold9pt7b.h>
 
-#include <BluetoothSerial.h>
-#include <BluetoothA2DPSource.h>
-
 // #include <Wifi.h>
 // #include <WebServer.h>
 // #include "FS.h"
 // #include <LittleFS.h>
 #include <config.h>
 
-#include <AudioTools.h>
-#include <AudioTools/Communication/A2DPStream.h>
-#include <AudioTools/AudioCodecs/CodecMP3Helix.h>
 #include <AudioTools/Concurrency/RTOS.h>
-#include <AudioTools/Disk/AudioSourceSD.h>
+
+#include "player.h"
 
 #define EPD_BUSY 4
 #define EPD_RST 16
@@ -33,37 +28,10 @@
 
 GxEPD2_BW<GxEPD2_370_GDEY037T03, GxEPD2_370_GDEY037T03::HEIGHT> display(GxEPD2_370_GDEY037T03(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
 
-BluetoothSerial SerialBT;
-BluetoothA2DPSource a2dp_source;
-
-uint16_t bufferProcessedSize = 1024 * 8;
-BufferRTOS<uint8_t> bufferProcessed(bufferProcessedSize);
-QueueStream<uint8_t> streamProcessed(bufferProcessed);
-
-File song1;
-
-// ResampleStream resampler(streamProcessed);
-ResampleStreamT<ParabolicInterpolator> resampler;
-MP3DecoderHelix helix;
-EncodedAudioStream decoder(&helix);
-
-Pipeline pipeline;
-
-StreamCopy copySongToPipeline(pipeline, song1);
-
 Task taskScreen("screen", 1024 * 2, 5, 0);
 Task taskAudioPipeline("audioPipeline", 1024 * 4, 20, 1);
 
-int32_t get_sound_data(uint8_t* data, int32_t size) {
-  // Serial.println("BT consuming");
-  int32_t result = streamProcessed.readBytes((uint8_t*)data, size);
-  // Serial.print(result); Serial.print(":"); Serial.print(size); Serial.print(":"); Serial.print(streamProcessed.available()); Serial.print(" ");
-  if(result < size) {
-    memset(data + result, 0, size-result);
-  }
-  delay(1);
-  return(size);
-}
+
 
 void setup() {
   Serial.begin(115200);
@@ -74,71 +42,12 @@ void setup() {
     return;
   }
 
-  Serial.println("Starting audio");
-  // song1.setPath("/library/ARIRANG/2.0.mp3");
-  song1 = SD.open("/library/ARIRANG/2.0.mp3");
-  
-  streamProcessed.begin();
-
-  Serial.println("Starting resampler");
-
-  auto rcfg = resampler.defaultConfig();
-  rcfg.sample_rate = 48000;
-  rcfg.to_sample_rate = 44100;
-  resampler.begin(rcfg);
-
-  //audio pipeline
-  Serial.println("starting audio pipeline task");
-
-  pipeline.add(decoder);
-  pipeline.add(resampler);
-  pipeline.setOutput(streamProcessed);
-  pipeline.begin();
-
-  Serial.println("Starting bluetooth");
-  a2dp_source.set_volume(60);
-  a2dp_source.set_data_callback(get_sound_data);
-  a2dp_source.set_auto_reconnect(true);
-  a2dp_source.start("hachiware - Find My");
-
-  while(!a2dp_source.is_connected()) {
-    vTaskDelay(pdMS_TO_TICKS(1000));
-    Serial.print(".");
-  }
-
-  // taskAudioPipeline.begin([](){
-  //   // if(bufferProcessed.availableForWrite() >= 4608) {
-  //     //Serial.print(bufferProcessed.availableForWrite()); Serial.println("availableForWrite");
-
-  //   // size_t bytesRead = 0;
-  //   // if(streamProcessed.availableForWrite() > 0.75*bufferProcessedSize) {
-  //   //   bytesRead = song1.read(mp3ChunkBufferA, 1024 * 2);
-  //   //   if(bytesRead > 0) {
-  //   //     decoder.write(mp3ChunkBufferA, bytesRead);
-  //   //   }
-  //   // } else {
-  //   //   bytesRead = song1.read(mp3ChunkBufferB, 1024 * 4);
-  //   //   if(bytesRead > 0) {
-  //   //     decoder.write(mp3ChunkBufferB, bytesRead);
-  //   //   }
-  //   // }
+  setupPipeline();
+  setupA2DP();
 
   taskAudioPipeline.begin([](){
     copySongToPipeline.copy();
-    // // Serial.print(" rantask ");
-    // if(bufferProcessed.availableForWrite() >= 512) {
-    //   size_t bytesRead = song1.
-    //   if(bytesRead > 0) {
-    //     Serial.println(bytesRead);
-    //     decoder.write(mp3ChunkBuffer, bytesRead);
-    //   }
-    // }
   });
-
-
-  
-  // });
-
 }
 
 void loop() {
