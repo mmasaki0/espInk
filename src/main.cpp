@@ -43,14 +43,13 @@ QueueStream<uint8_t> streamProcessed(bufferProcessed);
 File song1;
 
 // ResampleStream resampler(streamProcessed);
-ResampleStreamT<ParabolicInterpolator> resampler(streamProcessed);
+ResampleStreamT<ParabolicInterpolator> resampler;
 MP3DecoderHelix helix;
-EncodedAudioStream decoder(&resampler, &helix);
-AudioInfo resamplerIn(48000, 2, 16);
+EncodedAudioStream decoder(&helix);
 
-uint8_t mp3ChunkBuffer[1024*4];
+Pipeline pipeline;
 
-StreamCopy copier(decoder, song1);
+StreamCopy copySongToPipeline(pipeline, song1);
 
 Task taskScreen("screen", 1024 * 2, 5, 0);
 Task taskAudioPipeline("audioPipeline", 1024 * 4, 20, 1);
@@ -78,16 +77,8 @@ void setup() {
   Serial.println("Starting audio");
   // song1.setPath("/library/ARIRANG/2.0.mp3");
   song1 = SD.open("/library/ARIRANG/2.0.mp3");
-
-  Serial.print("starting size "); Serial.println(streamProcessed.availableForWrite());
+  
   streamProcessed.begin();
-
-
-  Serial.println("Starting decoder");
-  if (!decoder.begin()) {
-    Serial.println("decoder failed");
-    stop();
-  }
 
   Serial.println("Starting resampler");
 
@@ -95,12 +86,14 @@ void setup() {
   rcfg.sample_rate = 48000;
   rcfg.to_sample_rate = 44100;
   resampler.begin(rcfg);
-  // resampler.begin(resamplerIn, 44100);
-
-  // resampler.
 
   //audio pipeline
   Serial.println("starting audio pipeline task");
+
+  pipeline.add(decoder);
+  pipeline.add(resampler);
+  pipeline.setOutput(streamProcessed);
+  pipeline.begin();
 
   Serial.println("Starting bluetooth");
   a2dp_source.set_volume(60);
@@ -131,7 +124,7 @@ void setup() {
   //   // }
 
   taskAudioPipeline.begin([](){
-    copier.copy();
+    copySongToPipeline.copy();
     // // Serial.print(" rantask ");
     // if(bufferProcessed.availableForWrite() >= 512) {
     //   size_t bytesRead = song1.
