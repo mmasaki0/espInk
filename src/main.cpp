@@ -20,6 +20,7 @@
 #include <AudioTools/Communication/A2DPStream.h>
 #include <AudioTools/AudioCodecs/CodecMP3Helix.h>
 #include <AudioTools/Concurrency/RTOS.h>
+#include <AudioTools/Disk/AudioSourceSD.h>
 
 #define EPD_BUSY 4
 #define EPD_RST 16
@@ -43,13 +44,16 @@ File song1;
 
 // ResampleStream resampler(streamProcessed);
 ResampleStreamT<ParabolicInterpolator> resampler(streamProcessed);
-MP3DecoderHelix decoder(resampler);
+MP3DecoderHelix helix;
+EncodedAudioStream decoder(&resampler, &helix);
 AudioInfo resamplerIn(48000, 2, 16);
 
 uint8_t mp3ChunkBuffer[1024*4];
 
+StreamCopy copier(decoder, song1);
+
 Task taskScreen("screen", 1024 * 2, 5, 0);
-Task taskAudioPipeline("audioPipeline", 1024 * 2, 15, 1);
+Task taskAudioPipeline("audioPipeline", 1024 * 4, 20, 1);
 
 int32_t get_sound_data(uint8_t* data, int32_t size) {
   // Serial.println("BT consuming");
@@ -72,6 +76,7 @@ void setup() {
   }
 
   Serial.println("Starting audio");
+  // song1.setPath("/library/ARIRANG/2.0.mp3");
   song1 = SD.open("/library/ARIRANG/2.0.mp3");
 
   Serial.print("starting size "); Serial.println(streamProcessed.availableForWrite());
@@ -126,14 +131,15 @@ void setup() {
   //   // }
 
   taskAudioPipeline.begin([](){
-    // Serial.print(" rantask ");
-    if(bufferProcessed.availableForWrite() >= 4608) {
-      size_t bytesRead = song1.read(mp3ChunkBuffer, 1024*4);
-      if(bytesRead > 0) {
-        Serial.println(bytesRead);
-        decoder.write(mp3ChunkBuffer, bytesRead);
-      }
-    }
+    copier.copy();
+    // // Serial.print(" rantask ");
+    // if(bufferProcessed.availableForWrite() >= 512) {
+    //   size_t bytesRead = song1.
+    //   if(bytesRead > 0) {
+    //     Serial.println(bytesRead);
+    //     decoder.write(mp3ChunkBuffer, bytesRead);
+    //   }
+    // }
   });
 
 
