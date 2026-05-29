@@ -1,3 +1,4 @@
+#include <map>
 #include "player.h"
 
 #include <AudioTools.h>
@@ -12,6 +13,7 @@ BufferRTOS<uint8_t> bufferProcessed(bufferProcessedSize);
 QueueStream<uint8_t> streamProcessed(bufferProcessed);
 
 File song1;
+uint64_t currentId = 0;
 
 ResampleStreamT<ParabolicInterpolator> resampler;
 MP3DecoderHelix helix;
@@ -21,6 +23,8 @@ StreamCopy copySongToPipeline(pipeline, song1);
 
 BluetoothA2DPSource a2dp_source;
 
+std::map<uint64_t, song> mapLibrary;
+
 int32_t a2dpAudioCallback(uint8_t* data, int32_t size) {
   int32_t result = streamProcessed.readBytes((uint8_t*)data, size);
   if(result < size) {
@@ -28,6 +32,31 @@ int32_t a2dpAudioCallback(uint8_t* data, int32_t size) {
   }
   delay(1);
   return(size);
+}
+
+void sdTraverse(const char* path) {
+    File dir = SD.open(path);
+    File next = dir.openNextFile();
+    while(next) {
+        if(next.isDirectory()) {
+            char newpath[256];
+            snprintf(newpath, sizeof(newpath), "%s/%s", path, next.name());
+            sdTraverse(newpath);
+        } else {
+            char extension[3];
+            strncpy(extension, next.name() + strlen(next.name()) - 3, 3);
+            extension[3] = '\0';
+            // Serial.println(extension);
+            if(strcmp(extension, "mp3") == 0) {
+                Serial.println(next.name());
+                mapLibrary[currentId++] = song(next.path());
+            }
+            
+        }
+        next.close();
+        next = dir.openNextFile();
+    }
+    dir.close();
 }
 
 void setupPipeline() {

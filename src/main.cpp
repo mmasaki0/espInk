@@ -42,8 +42,13 @@ void setup() {
     return;
   }
 
+  sdTraverse("/library");
   setupPipeline();
   setupA2DP();
+
+  // for(auto& p : mapLibrary) {
+  //   Serial.println(p.first); Serial.println(p.second.path);
+  // }
 
   taskAudioPipeline.begin([](){
     copySongToPipeline.copy();
