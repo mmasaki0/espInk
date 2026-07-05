@@ -28,35 +28,45 @@
 
 GxEPD2_BW<GxEPD2_370_GDEY037T03, GxEPD2_370_GDEY037T03::HEIGHT> display(GxEPD2_370_GDEY037T03(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
 
-Task taskScreen("screen", 1024 * 2, 5, 0);
-Task taskAudioPipeline("audioPipeline", 1024 * 4, 20, 1);
+// Task taskScreen("screen", 1024 * 2, 5, 0);
+// Task taskAudioPipeline("audioPipeline", 1024 * 2, 20, 1);
 
 
 
 void setup() {
   Serial.begin(115200);
+  Serial.println(esp_get_free_heap_size());
+  // AudioToolsLogger.begin(Serial, AudioToolsLogLevel::Info);
 
-  SPI.begin(18, 19, 23, 27);
+  // SPI.begin(18, 19, 23, 27);
   if(!SD.begin(27)) {
     Serial.println("Error during SD.");
     return;
   }
 
-  sdTraverse("/library");
+  
+  
   setupPipeline();
   setupA2DP();
+
+  // Serial.println(esp_get_free_heap_size());
+  // sdTraverse("/library");
+  // Serial.println(esp_get_free_heap_size());
 
   // for(auto& p : mapLibrary) {
   //   Serial.println(p.first); Serial.println(p.second.path);
   // }
 
-  taskAudioPipeline.begin([](){
-    copySongToPipeline.copy();
-  });
+  // taskAudioPipeline.begin([](){
+  //   copySongToPipeline.copy();
+  //   vTaskDelay(1);
+  // });
 }
 
 void loop() {
-  delay(1);
+  copySongToPipeline.copy();
+  Serial.println(esp_get_free_heap_size());
+  // Serial.println(streamProcessed.available());
 }
 
 

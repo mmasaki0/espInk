@@ -19,5 +19,4 @@ struct song {
 
 extern std::map<uint64_t, song> mapLibrary;
 extern StreamCopy copySongToPipeline;
-
-
+extern QueueStream<uint8_t> streamProcessed;
