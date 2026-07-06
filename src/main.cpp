@@ -29,7 +29,7 @@
 GxEPD2_BW<GxEPD2_370_GDEY037T03, GxEPD2_370_GDEY037T03::HEIGHT> display(GxEPD2_370_GDEY037T03(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
 
 // Task taskScreen("screen", 1024 * 2, 5, 0);
-// Task taskAudioPipeline("audioPipeline", 1024 * 2, 20, 1);
+Task taskAudioPipeline("audioPipeline", 1600, 20, 1);
 
 
 
@@ -48,8 +48,8 @@ void setup() {
 
   
   
-  // setupPipeline();
-  // setupA2DP();
+  setupPipeline();
+  setupA2DP();
 
   // Serial.println(esp_get_free_heap_size());
   // sdTraverse("/library");
@@ -59,10 +59,11 @@ void setup() {
   //   Serial.println(p.first); Serial.println(p.second.path);
   // }
 
-  // taskAudioPipeline.begin([](){
-  //   copySongToPipeline.copy();
-  //   vTaskDelay(1);
-  // });
+  taskAudioPipeline.begin([](){
+    copySongToPipeline.copy();
+    // Serial.println(uxTaskGetStackHighWaterMark(NULL));
+    vTaskDelay(1);
+  });
 }
 
 void loop() {

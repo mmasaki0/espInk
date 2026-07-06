@@ -8,7 +8,7 @@
 
 #include <BluetoothA2DPSource.h>
 
-uint16_t bufferProcessedSize = 1024 * 4;
+uint16_t bufferProcessedSize = 1024 * 12;
 BufferRTOS<uint8_t> bufferProcessed(bufferProcessedSize);
 QueueStream<uint8_t> streamProcessed(bufferProcessed);
 
@@ -32,7 +32,7 @@ int32_t a2dpAudioCallback(uint8_t* data, int32_t size) {
   }
   // delay(1);
   // bob = streamProcessed.levelPercent();
-//   Serial.print(result); Serial.print(":"); Serial.print(size); Serial.print(" "); Serial.print(streamProcessed.available());  Serial.print(" ");
+  Serial.print(result); Serial.print(":"); Serial.print(size); Serial.print(" "); Serial.print(streamProcessed.available());  Serial.print(" ");
   return(size);
 }
 
