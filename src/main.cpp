@@ -1,11 +1,8 @@
 #include <Arduino.h>
 #include <SPI.h>
-
 #include <SD.h>
 
-#include <GxEPD2_BW.h>
-#include <Fonts/FreeMono12pt7b.h>
-#include <Fonts/FreeMonoBold9pt7b.h>
+
 
 // #include <Wifi.h>
 // #include <WebServer.h>
@@ -16,17 +13,15 @@
 #include <AudioTools/Concurrency/RTOS.h>
 
 #include "player.h"
+#include "display.h"
 
-#define EPD_BUSY 4
-#define EPD_RST 16
-#define EPD_DC 17
-#define EPD_CS 5
+
 
 #define FORMAT_LITTLEFS_IF_FAILED true
 
 // WebServer server(80);
 
-GxEPD2_BW<GxEPD2_370_GDEY037T03, GxEPD2_370_GDEY037T03::HEIGHT> display(GxEPD2_370_GDEY037T03(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
+
 
 // Task taskScreen("screen", 1024 * 2, 5, 0);
 Task taskAudioPipeline("audioPipeline", 1600, 20, 1);
@@ -35,21 +30,26 @@ Task taskAudioPipeline("audioPipeline", 1600, 20, 1);
 
 void setup() {
   Serial.begin(115200);
-  Serial.println(esp_get_free_heap_size());
-  // AudioToolsLogger.begin(Serial, AudioToolsLogLevel::Info);
-
   SPI.begin(5, 21, 19, 27);
-  // SD.begin(27);
+
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
+
   if(!SD.begin(27)) {
     Serial.println("Error during SD.");
     return;
   }
+
   sdTraverse("/library");
 
-  
-  
   setupPipeline();
   setupA2DP();
+  setupDisplay();
+
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+  displayWriteText(mapLibrary[0].path);
+
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
 
   // Serial.println(esp_get_free_heap_size());
   // sdTraverse("/library");
@@ -62,15 +62,15 @@ void setup() {
   taskAudioPipeline.begin([](){
     copySongToPipeline.copy();
     // Serial.println(uxTaskGetStackHighWaterMark(NULL));
-    vTaskDelay(1);
+    // vTaskDelay(1);
   });
 }
 
 void loop() {
 //   copySongToPipeline.copy();
 //   Serial.println(esp_get_free_heap_size());
-//   // Serial.println(streamProcessed.available());
-  delay(1000);
+  // Serial.println(streamProcessed.available());
+  vTaskDelay(1000);
 }
 
 

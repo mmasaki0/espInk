@@ -31,14 +31,12 @@ int32_t a2dpAudioCallback(uint8_t* data, int32_t size) {
     memset(data + result, 0, size-result);
   }
   // delay(1);
-  // bob = streamProcessed.levelPercent();
   Serial.print(result); Serial.print(":"); Serial.print(size); Serial.print(" "); Serial.print(streamProcessed.available());  Serial.print(" ");
   return(size);
 }
 
 
 void sdTraverse(const char* path) {
-    // Serial.println("bro");
     File dir = SD.open(path);
     File next = dir.openNextFile();
     while(next) {
