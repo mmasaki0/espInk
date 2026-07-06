@@ -38,16 +38,18 @@ void setup() {
   Serial.println(esp_get_free_heap_size());
   // AudioToolsLogger.begin(Serial, AudioToolsLogLevel::Info);
 
-  // SPI.begin(18, 19, 23, 27);
+  SPI.begin(5, 21, 19, 27);
+  // SD.begin(27);
   if(!SD.begin(27)) {
     Serial.println("Error during SD.");
     return;
   }
+  sdTraverse("/library");
 
   
   
-  setupPipeline();
-  setupA2DP();
+  // setupPipeline();
+  // setupA2DP();
 
   // Serial.println(esp_get_free_heap_size());
   // sdTraverse("/library");
@@ -64,9 +66,10 @@ void setup() {
 }
 
 void loop() {
-  copySongToPipeline.copy();
-  Serial.println(esp_get_free_heap_size());
-  // Serial.println(streamProcessed.available());
+//   copySongToPipeline.copy();
+//   Serial.println(esp_get_free_heap_size());
+//   // Serial.println(streamProcessed.available());
+  delay(1000);
 }
 
 

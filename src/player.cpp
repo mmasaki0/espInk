@@ -38,29 +38,29 @@ int32_t a2dpAudioCallback(uint8_t* data, int32_t size) {
 
 
 void sdTraverse(const char* path) {
-    Serial.println("bro");
+    // Serial.println("bro");
     File dir = SD.open(path);
     File next = dir.openNextFile();
-    // while(next) {
-    //     // delay(1);
-    //     // Serial.println(next.path());
-    //     if(next.isDirectory()) {
-    //         char newpath[256];
-    //         snprintf(newpath, sizeof(newpath), "%s/%s", path, next.name());
-    //         sdTraverse(newpath);
-    //     } else {
-    //         char extension[4];
-    //         strncpy(extension, next.name() + strlen(next.name()) - 3, 3);
-    //         extension[3] = '\0';
-    //         // Serial.println(extension);
-    //         if(strcmp(extension, "mp3") == 0) {
-    //             Serial.println(next.name());
-    //             mapLibrary[currentId++] = song(next.path());
-    //         }
-    //     }
-    //     next.close();
-    //     next = dir.openNextFile();
-    // }
+    while(next) {
+        // delay(1);
+        // Serial.println(next.path());
+        if(next.isDirectory()) {
+            char newpath[256];
+            snprintf(newpath, sizeof(newpath), "%s/%s", path, next.name());
+            sdTraverse(newpath);
+        } else {
+            char extension[4];
+            strncpy(extension, next.name() + strlen(next.name()) - 3, 3);
+            extension[3] = '\0';
+            // Serial.println(extension);
+            if(strcmp(extension, "mp3") == 0) {
+                Serial.println(next.name());
+                mapLibrary[currentId++] = song(next.path());
+            }
+        }
+        next.close();
+        next = dir.openNextFile();
+    }
     next.close();
     dir.close();
 }
