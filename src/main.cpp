@@ -2,7 +2,7 @@
 #include <SPI.h>
 #include <SD.h>
 
-
+#include <string>
 
 // #include <Wifi.h>
 // #include <WebServer.h>
@@ -23,8 +23,8 @@
 
 
 
-// Task taskScreen("screen", 1024 * 2, 5, 0);
-Task taskAudioPipeline("audioPipeline", 1600, 20, 1);
+Task taskDisplay("display", 2048, 5, 1);
+Task taskAudio("audioPipeline", 1600, 20, 1);
 
 
 
@@ -41,15 +41,18 @@ void setup() {
 
   sdTraverse("/library");
 
-  setupPipeline();
-  setupA2DP();
   setupDisplay();
 
+  setupPipeline();
+  setupA2DP();
+  displayWriteText("bluetooth connected");
+  
+
   vTaskDelay(1000 / portTICK_PERIOD_MS);
 
-  displayWriteText(mapLibrary[0].path);
+  
 
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
+  
 
   // Serial.println(esp_get_free_heap_size());
   // sdTraverse("/library");
@@ -59,17 +62,27 @@ void setup() {
   //   Serial.println(p.first); Serial.println(p.second.path);
   // }
 
-  taskAudioPipeline.begin([](){
-    copySongToPipeline.copy();
-    // Serial.println(uxTaskGetStackHighWaterMark(NULL));
-    // vTaskDelay(1);
+  taskAudio.begin([](){
+    int copiedBytes = copySongToPipeline.copy();
+    // Serial.println(copiedBytes);
+
+    // //check if end of song
+    if(copiedBytes == 0 && streamProcessed.available() == 0) {
+      // Serial.println("end of song");
+      //wip
+    }
+
   });
+
+  // displayWriteText(std::to_string(analogRead(35) * 2));
+
+  // taskDisplay.begin([](){
+    
+  // });
+  
 }
 
 void loop() {
-//   copySongToPipeline.copy();
-//   Serial.println(esp_get_free_heap_size());
-  // Serial.println(streamProcessed.available());
   vTaskDelay(1000);
 }
 

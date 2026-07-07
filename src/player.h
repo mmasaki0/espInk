@@ -8,6 +8,8 @@ void setupPipeline();
 void setupA2DP();
 void sdTraverse(const char* path);
 
+void addToFuture(uint16_t id);
+
 struct song {
     char path[256];
     song() {}

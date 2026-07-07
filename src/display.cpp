@@ -2,6 +2,8 @@
 #include <Fonts/FreeMono12pt7b.h>
 #include <Fonts/FreeMonoBold9pt7b.h>
 
+#include <string>
+
 #define EPD_BUSY 22
 #define EPD_RST 20
 #define EPD_DC 32
@@ -13,7 +15,7 @@ void setupDisplay() {
     display.init(115200);
 }
 
-void displayWriteText(char text[]) {
+void displayWriteText(std::string text) {
     int16_t x1, y1;
     uint16_t w, h;
 
@@ -21,14 +23,14 @@ void displayWriteText(char text[]) {
     display.setTextColor(GxEPD_BLACK);
     display.setFont(&FreeMonoBold9pt7b);
 
-    display.getTextBounds(text, 100, 100, &x1, &y1, &w, &h);
+    display.getTextBounds(text.c_str(), 100, 100, &x1, &y1, &w, &h);
 
     display.setPartialWindow(x1, y1, w, h);
 
     display.firstPage();
         do {
         display.setCursor(100, 100);
-        display.print(text);
+        display.print(text.c_str());
         } while (display.nextPage()); // Automatically renders and flushes over SPI
     display.hibernate();
 }

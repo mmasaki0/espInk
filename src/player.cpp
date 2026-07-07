@@ -7,19 +7,26 @@
 #include <AudioTools/Disk/AudioSourceSD.h>
 
 #include <BluetoothA2DPSource.h>
+#include <esp_avrc_api.h>
 
-uint16_t bufferProcessedSize = 1024 * 12;
+#include <deque>
+#include <queue>
+
+uint16_t bufferProcessedSize = 1024 * 24;
 BufferRTOS<uint8_t> bufferProcessed(bufferProcessedSize);
 QueueStream<uint8_t> streamProcessed(bufferProcessed);
 
-File song1;
-uint64_t currentId = 0;
+File currentFile;
+uint16_t currentId = 0;
+
+std::deque<uint16_t> future; //queue for play next
+std::queue<uint16_t> history;
 
 ResampleStreamT<ParabolicInterpolator> resampler;
 MP3DecoderHelix helix;
 EncodedAudioStream decoder(&helix);
 Pipeline pipeline;
-StreamCopy copySongToPipeline(pipeline, song1);
+StreamCopy copySongToPipeline(pipeline, currentFile, 1024 * 8);
 
 BluetoothA2DPSource a2dp_source;
 
@@ -30,18 +37,31 @@ int32_t a2dpAudioCallback(uint8_t* data, int32_t size) {
   if(result < size) {
     memset(data + result, 0, size-result);
   }
-  // delay(1);
-  Serial.print(result); Serial.print(":"); Serial.print(size); Serial.print(" "); Serial.print(streamProcessed.available());  Serial.print(" ");
+//   Serial.print(result); Serial.print(":"); Serial.print(size); Serial.print(":"); Serial.print(streamProcessed.available());  Serial.println(" ");
   return(size);
 }
 
+void avrcCallback(uint8_t id, bool isReleased) {
+    if(isReleased) {
 
+        switch (id) {
+            case ESP_AVRC_PT_CMD_PAUSE:
+                Serial.println("pause");
+
+                break;
+            
+            default:
+                break;
+        }
+
+    }
+}
+
+// rewrite this in the future
 void sdTraverse(const char* path) {
     File dir = SD.open(path);
     File next = dir.openNextFile();
     while(next) {
-        // delay(1);
-        // Serial.println(next.path());
         if(next.isDirectory()) {
             char newpath[256];
             snprintf(newpath, sizeof(newpath), "%s/%s", path, next.name());
@@ -50,7 +70,6 @@ void sdTraverse(const char* path) {
             char extension[4];
             strncpy(extension, next.name() + strlen(next.name()) - 3, 3);
             extension[3] = '\0';
-            // Serial.println(extension);
             if(strcmp(extension, "mp3") == 0) {
                 Serial.println(next.name());
                 mapLibrary[currentId++] = song(next.path());
@@ -64,7 +83,7 @@ void sdTraverse(const char* path) {
 }
 
 void setupPipeline() {
-    song1 = SD.open("/library/ARIRANG/2.0.mp3");
+    currentFile = SD.open("/library/ARIRANG/2.0.mp3");
 
     streamProcessed.begin();
 
@@ -82,12 +101,32 @@ void setupPipeline() {
 void setupA2DP() {
     a2dp_source.set_volume(60);
     a2dp_source.set_auto_reconnect(true);
-    a2dp_source.start("hachiware - Find My");
     a2dp_source.set_data_callback(a2dpAudioCallback);
+    a2dp_source.set_avrc_passthru_command_callback(avrcCallback);
+        
+    a2dp_source.start("hachiware - Find My");
+    
     while(!a2dp_source.is_connected()) {
         Serial.print(".");
         delay(1000);
     }
-    
+    Serial.print("buffer size:"); Serial.println(DEFAULT_BUFFER_SIZE); Serial.println(A2DP_BUFFER_SIZE);
 }
 
+void addToFuture(uint16_t id, std::string loc) {
+    if(loc == "front") {
+        future.push_front(id);
+        if(future.size() > 50) {
+            future.pop_back();
+        }
+    } else if(loc == "back") {
+        //only push to back if queue has empty space
+        if(future.size() < 50) {
+            future.push_back(id);
+        }
+    }
+}
+
+void advancePlaybackQueue() {
+
+}

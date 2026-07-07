@@ -3,4 +3,4 @@
 #include <string>
 
 void setupDisplay();
-void displayWriteText(char text[]);
+void displayWriteText(std::string text);
