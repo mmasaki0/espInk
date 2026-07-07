@@ -94,7 +94,7 @@ void sdTraverse(const char* path) {
 }
 
 void setupPipeline() {
-    currentFile = SD.open("/library/ARIRANG/2.0.mp3");
+    currentFile = SD.open("/library/ARIRANG/SWIM.mp3");
 
     streamProcessed.begin();
 

@@ -21,12 +21,27 @@
 
 // WebServer server(80);
 
+static TaskHandle_t taskHandleDisplay = NULL;
+static TaskHandle_t taskHandleAudio = NULL;
 
+void taskAudio(void *param) {
+  while(1) {
+    if(!playing) {
+      static uint8_t zeros[512] = {0};
+      streamProcessed.write(zeros, sizeof(zeros));
+    } else {
+      copySongToPipeline.copy();
+    }
+    vTaskDelay(pdTICKS_TO_MS(1));
+  }
+  vTaskDelete(NULL);
+}
 
-Task taskDisplay("taskDisplay", 2048, 5, 1);
-Task taskAudio("taskAudio", 1600, 20, 1);
+void taskDisplay(void *param) {
 
-
+}
+// Task taskDisplay("taskDisplay", 2048, 5, 1);
+// Task taskAudio("taskAudio", 1600, 20, 1);
 
 void setup() {
   Serial.begin(115200);
@@ -65,24 +80,28 @@ void setup() {
   //   Serial.println(p.first); Serial.println(p.second.path);
   // }
 
-  taskAudio.begin([](){
-    if(!playing) {
-      static uint8_t zeros[512] = {0};
-      streamProcessed.write(zeros, sizeof(zeros));
-    } else {
-      copySongToPipeline.copy();
-    }
+  xTaskCreatePinnedToCore(taskAudio, "taskAudio", 1600, NULL, 20, &taskHandleAudio, 1);
 
-    // Serial.println(copiedBytes);
+  // taskAudio.begin([](){
+  //   if(!playing) {
+  //     static uint8_t zeros[512] = {0};
+  //     streamProcessed.write(zeros, sizeof(zeros));
+  //   } else {
+  //     copySongToPipeline.copy();
+  //   }
 
-    // //check if end of song
-    // if(copiedBytes == 0 && streamProcessed.available() == 0) {
-    //   // Serial.println("end of song");
-    //   //wip
-    // }
+  //   // Serial.println(copiedBytes);
+
+  //   // //check if end of song
+  //   // if(copiedBytes == 0 && streamProcessed.available() == 0) {
+  //   //   // Serial.println("end of song");
+  //   //   //wip
+  //   // }
     
-    vTaskDelay(pdMS_TO_TICKS(1));
-  });
+  //   vTaskDelay(pdMS_TO_TICKS(1));
+  // });
+
+  
 
   // displayWriteText(std::to_string(analogRead(35) * 2));
 
