@@ -23,15 +23,16 @@
 
 
 
-Task taskDisplay("display", 2048, 5, 1);
-Task taskAudio("audioPipeline", 1600, 20, 1);
+Task taskDisplay("taskDisplay", 2048, 5, 1);
+Task taskAudio("taskAudio", 1600, 20, 1);
 
 
 
 void setup() {
   Serial.begin(115200);
   SPI.begin(5, 21, 19, 27);
-
+  // AudioToolsLogger.begin(Serial, AudioToolsLogLevel::Info);
+  
   vTaskDelay(1000 / portTICK_PERIOD_MS);
 
   if(!SD.begin(27)) {
@@ -50,7 +51,9 @@ void setup() {
 
   vTaskDelay(1000 / portTICK_PERIOD_MS);
 
-  
+  addToFuture(2, "front");
+  addToFuture(3, "front");
+  addToFuture(5, "front");
 
   
 
@@ -63,15 +66,22 @@ void setup() {
   // }
 
   taskAudio.begin([](){
-    int copiedBytes = copySongToPipeline.copy();
+    if(!playing) {
+      static uint8_t zeros[512] = {0};
+      streamProcessed.write(zeros, sizeof(zeros));
+    } else {
+      copySongToPipeline.copy();
+    }
+
     // Serial.println(copiedBytes);
 
     // //check if end of song
-    if(copiedBytes == 0 && streamProcessed.available() == 0) {
-      // Serial.println("end of song");
-      //wip
-    }
-
+    // if(copiedBytes == 0 && streamProcessed.available() == 0) {
+    //   // Serial.println("end of song");
+    //   //wip
+    // }
+    
+    vTaskDelay(pdMS_TO_TICKS(1));
   });
 
   // displayWriteText(std::to_string(analogRead(35) * 2));

@@ -8,7 +8,7 @@ void setupPipeline();
 void setupA2DP();
 void sdTraverse(const char* path);
 
-void addToFuture(uint16_t id);
+void addToFuture(uint16_t id, std::string loc);
 
 struct song {
     char path[256];
@@ -19,6 +19,8 @@ struct song {
     };
 };
 
-extern std::map<uint64_t, song> mapLibrary;
+extern std::map<uint16_t, song> mapLibrary;
 extern StreamCopy copySongToPipeline;
 extern QueueStream<uint8_t> streamProcessed;
+
+extern bool playing;

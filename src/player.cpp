@@ -22,6 +22,8 @@ uint16_t currentId = 0;
 std::deque<uint16_t> future; //queue for play next
 std::queue<uint16_t> history;
 
+bool playing = true;
+
 ResampleStreamT<ParabolicInterpolator> resampler;
 MP3DecoderHelix helix;
 EncodedAudioStream decoder(&helix);
@@ -30,15 +32,18 @@ StreamCopy copySongToPipeline(pipeline, currentFile, 1024 * 8);
 
 BluetoothA2DPSource a2dp_source;
 
-std::map<uint64_t, song> mapLibrary;
+std::map<uint16_t, song> mapLibrary;
 
 int32_t a2dpAudioCallback(uint8_t* data, int32_t size) {
-  int32_t result = streamProcessed.readBytes((uint8_t*)data, size);
-  if(result < size) {
-    memset(data + result, 0, size-result);
-  }
-//   Serial.print(result); Serial.print(":"); Serial.print(size); Serial.print(":"); Serial.print(streamProcessed.available());  Serial.println(" ");
-  return(size);
+    // if(!playing) {
+    //     return(0);
+    // }
+    int32_t result = streamProcessed.readBytes((uint8_t*)data, size);
+    if(result < size) {
+        memset(data + result, 0, size-result);
+    }
+        Serial.print(result); Serial.print(":"); Serial.print(size); Serial.print(":"); Serial.print(streamProcessed.available());  Serial.println(" ");
+    return(size);
 }
 
 void avrcCallback(uint8_t id, bool isReleased) {
@@ -47,9 +52,15 @@ void avrcCallback(uint8_t id, bool isReleased) {
         switch (id) {
             case ESP_AVRC_PT_CMD_PAUSE:
                 Serial.println("pause");
-
+                playing = !playing;
                 break;
-            
+            case ESP_AVRC_PT_CMD_FORWARD:
+                Serial.println("skip forward");
+                currentFile.close();
+                Serial.println(mapLibrary[future.front()].path);
+                currentFile = SD.open(mapLibrary[future.front()].path);
+                future.pop_front();
+                
             default:
                 break;
         }
