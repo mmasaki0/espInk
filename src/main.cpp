@@ -15,33 +15,22 @@
 #include "player.h"
 #include "display.h"
 
-
+extern File currentFile;
 
 #define FORMAT_LITTLEFS_IF_FAILED true
 
 // WebServer server(80);
 
 static TaskHandle_t taskHandleDisplay = NULL;
-static TaskHandle_t taskHandleAudio = NULL;
 
-void taskAudio(void *param) {
-  while(1) {
-    if(!playing) {
-      static uint8_t zeros[512] = {0};
-      streamProcessed.write(zeros, sizeof(zeros));
-    } else {
-      copySongToPipeline.copy();
-    }
-    vTaskDelay(pdTICKS_TO_MS(1));
-  }
-  vTaskDelete(NULL);
-}
+
+
+
+
 
 void taskDisplay(void *param) {
 
 }
-// Task taskDisplay("taskDisplay", 2048, 5, 1);
-// Task taskAudio("taskAudio", 1600, 20, 1);
 
 void setup() {
   Serial.begin(115200);
@@ -58,61 +47,31 @@ void setup() {
   sdTraverse("/library");
 
   setupDisplay();
-
   setupPipeline();
   setupA2DP();
   displayWriteText("bluetooth connected");
   
-
   vTaskDelay(1000 / portTICK_PERIOD_MS);
 
-  addToFuture(2, "front");
-  addToFuture(3, "front");
-  addToFuture(5, "front");
+  futureAdd(2, "front");
+  futureAdd(3, "front");
+  futureAdd(5, "front");
+
+  // vTaskDelay(10000);
+  // Serial.println("manusal sawp");
+  // currentFile = SD.open("/library/ARIRANG/2.0.mp3");
 
   
-
-  // Serial.println(esp_get_free_heap_size());
-  // sdTraverse("/library");
-  // Serial.println(esp_get_free_heap_size());
-
-  // for(auto& p : mapLibrary) {
-  //   Serial.println(p.first); Serial.println(p.second.path);
-  // }
-
-  xTaskCreatePinnedToCore(taskAudio, "taskAudio", 1600, NULL, 20, &taskHandleAudio, 1);
-
-  // taskAudio.begin([](){
-  //   if(!playing) {
-  //     static uint8_t zeros[512] = {0};
-  //     streamProcessed.write(zeros, sizeof(zeros));
-  //   } else {
-  //     copySongToPipeline.copy();
-  //   }
-
-  //   // Serial.println(copiedBytes);
-
-  //   // //check if end of song
-  //   // if(copiedBytes == 0 && streamProcessed.available() == 0) {
-  //   //   // Serial.println("end of song");
-  //   //   //wip
-  //   // }
-    
-  //   vTaskDelay(pdMS_TO_TICKS(1));
-  // });
-
+  // xTaskCreatePinnedToCore(taskDisplay, "taskDisplay", 2048, NULL, 5, &taskHandleDisplay, 1);
   
+
 
   // displayWriteText(std::to_string(analogRead(35) * 2));
-
-  // taskDisplay.begin([](){
-    
-  // });
-  
 }
 
 void loop() {
-  vTaskDelay(1000);
+  // Serial.println(streamProcessed.available());
+  // vTaskDelay(10);
 }
 
 

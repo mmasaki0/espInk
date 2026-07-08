@@ -1,6 +1,8 @@
 #include <map>
 #include "player.h"
 
+#include <SD.h>
+
 #include <AudioTools.h>
 #include <AudioTools/Communication/A2DPStream.h>
 #include <AudioTools/AudioCodecs/CodecMP3Helix.h>
@@ -12,7 +14,7 @@
 #include <deque>
 #include <queue>
 
-uint16_t bufferProcessedSize = 1024 * 24;
+uint16_t bufferProcessedSize = 1024 * 16;
 BufferRTOS<uint8_t> bufferProcessed(bufferProcessedSize);
 QueueStream<uint8_t> streamProcessed(bufferProcessed);
 
@@ -23,10 +25,12 @@ std::deque<uint16_t> future; //queue for play next
 std::queue<uint16_t> history;
 
 bool playing = true;
+bool switching = false;
 
 ResampleStreamT<ParabolicInterpolator> resampler;
 MP3DecoderHelix helix;
 EncodedAudioStream decoder(&helix);
+VolumeStream volume;
 Pipeline pipeline;
 StreamCopy copySongToPipeline(pipeline, currentFile, 1024 * 8);
 
@@ -34,16 +38,56 @@ BluetoothA2DPSource a2dp_source;
 
 std::map<uint16_t, song> mapLibrary;
 
+static TaskHandle_t taskHandleAudio = NULL;
+static TaskHandle_t taskHandleSwitch = NULL;
+
+// static QueueHandle_t playing;
+
 int32_t a2dpAudioCallback(uint8_t* data, int32_t size) {
-    // if(!playing) {
-    //     return(0);
-    // }
+    bool p;
+    if(!playing || streamProcessed.available() == 0) {
+        //send empty bytes into a2dp if paused
+        memset(data, 0, 512);
+        // Serial.println(streamProcessed.available());
+        return(512);
+    }
     int32_t result = streamProcessed.readBytes((uint8_t*)data, size);
     if(result < size) {
         memset(data + result, 0, size-result);
     }
-        Serial.print(result); Serial.print(":"); Serial.print(size); Serial.print(":"); Serial.print(streamProcessed.available());  Serial.println(" ");
+    // Serial.println(streamProcessed.available());
+    vTaskDelay(pdTICKS_TO_MS(1));
+        // Serial.print(result); Serial.print(":"); Serial.print(size); Serial.print(":"); Serial.print(streamProcessed.available());  Serial.println(" ");
     return(size);
+}
+
+void taskAudio(void *param) {
+    char msg[256];
+    while(1) {
+        // if(xSemaphoreTake(mutexAudio, 0) == pdTRUE) {
+            // if(!playing) {
+            // static uint8_t zeros[512] = {0};
+            // streamProcessed.write(zeros, sizeof(zeros));
+            // } else {
+            if(playing) {
+                int bytesRead = copySongToPipeline.copy();
+                if(currentFile.available() == 0) {
+                    playing = false;
+                    Serial.println("done");
+                }
+            }
+
+            
+            // Serial.println(bytesRead);
+
+            // }
+            // xSemaphoreGive(mutexAudio);
+        // } else {
+        //     vTaskDelay(pdTICKS_TO_MS(1));
+        // }
+        vTaskDelay(pdTICKS_TO_MS(1));
+    }
+    vTaskDelete(NULL);
 }
 
 void avrcCallback(uint8_t id, bool isReleased) {
@@ -54,13 +98,22 @@ void avrcCallback(uint8_t id, bool isReleased) {
                 Serial.println("pause");
                 playing = !playing;
                 break;
-            case ESP_AVRC_PT_CMD_FORWARD:
+            case ESP_AVRC_PT_CMD_FORWARD: {
                 Serial.println("skip forward");
-                currentFile.close();
-                Serial.println(mapLibrary[future.front()].path);
+                // playing=false;
+                  
                 currentFile = SD.open(mapLibrary[future.front()].path);
+                  
+                // Serial.println("buh");
                 future.pop_front();
-                
+                // playing=true;
+                // streamProcessed.clear();
+                // Serial.println(future.front());
+                // xQueueSend(queueHandleSwitch, (void *)mapLibrary[future.front()].path, 10);
+                // Serial.println(currentFile.name());
+                // switching = true;
+                break;
+            }
             default:
                 break;
         }
@@ -93,8 +146,18 @@ void sdTraverse(const char* path) {
     dir.close();
 }
 
-void setupPipeline() {
+void preSetup() {
+    // playing = xQueueCreate(8, sizeof(bool));
+    xTaskCreatePinnedToCore(taskAudio, "taskAudio", 1024*3, NULL, 15, &taskHandleAudio, 1);
+    // xTaskCreatePinnedToCore(taskSwitchCurrentFile, "taskSwitchCurrentFile", 1024*3, NULL, 20, &taskHandleSwitch, 1);
+
+    
+
     currentFile = SD.open("/library/ARIRANG/SWIM.mp3");
+}
+
+void setupPipeline() {
+    preSetup();
 
     streamProcessed.begin();
 
@@ -105,11 +168,13 @@ void setupPipeline() {
 
     pipeline.add(decoder);
     pipeline.add(resampler);
+    // pipeline.add(volume);
     pipeline.setOutput(streamProcessed);
     pipeline.begin();
 }
 
 void setupA2DP() {
+    // a2dp_source.set_task_core(0);
     a2dp_source.set_volume(60);
     a2dp_source.set_auto_reconnect(true);
     a2dp_source.set_data_callback(a2dpAudioCallback);
@@ -124,7 +189,7 @@ void setupA2DP() {
     Serial.print("buffer size:"); Serial.println(DEFAULT_BUFFER_SIZE); Serial.println(A2DP_BUFFER_SIZE);
 }
 
-void addToFuture(uint16_t id, std::string loc) {
+void futureAdd(uint16_t id, std::string loc) {
     if(loc == "front") {
         future.push_front(id);
         if(future.size() > 50) {
@@ -138,6 +203,11 @@ void addToFuture(uint16_t id, std::string loc) {
     }
 }
 
-void advancePlaybackQueue() {
+void futureNext() {
+    if(future.front()) {
 
+    } else {
+        playing = false;
+    }
 }
+
