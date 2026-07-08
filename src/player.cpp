@@ -42,6 +42,7 @@ static TaskHandle_t taskHandleAudio = NULL;
 static TaskHandle_t taskHandleSwitch = NULL;
 
 // static QueueHandle_t playing;
+SemaphoreHandle_t mutexPlaying;
 
 int32_t a2dpAudioCallback(uint8_t* data, int32_t size) {
     bool p;
@@ -59,6 +60,13 @@ int32_t a2dpAudioCallback(uint8_t* data, int32_t size) {
     vTaskDelay(pdTICKS_TO_MS(1));
         // Serial.print(result); Serial.print(":"); Serial.print(size); Serial.print(":"); Serial.print(streamProcessed.available());  Serial.println(" ");
     return(size);
+}
+
+void setPlaying(bool nextState) {
+    if(xSemaphoreTake(mutexPlaying, portMAX_DELAY) == pdTRUE) {
+        playing = nextState;
+        xSemaphoreGive(mutexPlaying);
+    }
 }
 
 void taskAudio(void *param) {
@@ -149,6 +157,7 @@ void sdTraverse(const char* path) {
 void preSetup() {
     // playing = xQueueCreate(8, sizeof(bool));
     xTaskCreatePinnedToCore(taskAudio, "taskAudio", 1024*3, NULL, 15, &taskHandleAudio, 1);
+    mutexPlaying = xSemaphoreCreateMutex();
     // xTaskCreatePinnedToCore(taskSwitchCurrentFile, "taskSwitchCurrentFile", 1024*3, NULL, 20, &taskHandleSwitch, 1);
 
     
