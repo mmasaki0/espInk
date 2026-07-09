@@ -67,16 +67,17 @@ void avrcCallback(uint8_t id, bool isReleased) {
     if(isReleased) {
         Serial.println(id);
         switch (id) {
-            case ESP_AVRC_PT_CMD_PAUSE:
+            case ESP_AVRC_PT_CMD_PAUSE: {
                 Serial.println("pause");
-                char msg[64] = "pause";
-                xQueueSend(queueAudioControl, msg, 0);
+                char qmsg[64] = "pause";
+                xQueueSend(queueAudioControl, qmsg, 0);
                 break;
+            }   
             case ESP_AVRC_PT_CMD_FORWARD: {
                 Serial.println("forward");
                 // playing=false;
-                char msg[64] = "forward";
-                xQueueSend(queueAudioControl, msg, 0);
+                char qmsg[64] = "forward";
+                xQueueSend(queueAudioControl, qmsg, 0);
                 break;
             }
             default:
@@ -104,26 +105,21 @@ void taskAudioControl(void *param) {
             }
         }
         if(playing) {
-            if(!currentFile.available()) {
-                if(future.front()) {
-
-                } else {
-                    playing = 0;
-                }
+            if(currentFile.available() == 0) {
+                char qmsg[64] = "forward";
+                xQueueSend(queueAudioControl, qmsg, 0);
+                Serial.println("done");
             }
         }
         vTaskDelay(pdTICKS_TO_MS(1));
     }
+    vTaskDelete(NULL);
 }
 
 void taskAudio(void *param) {
     while(1) {
         if(playing) {
-            int bytesRead = copySongToPipeline.copy();
-            if(currentFile.available() == 0) {
-                playing = 0;
-                Serial.println("done");
-            }
+            copySongToPipeline.copy();
         }
         vTaskDelay(pdTICKS_TO_MS(1));
     }
@@ -212,12 +208,3 @@ void futureAdd(uint16_t id, std::string loc) {
         }
     }
 }
-
-void futureNext() {
-    if(future.front()) {
-
-    } else {
-        playing = 0;
-    }
-}
-
