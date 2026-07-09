@@ -34,15 +34,15 @@ EncodedAudioStream decoder(&helix);
 VolumeStream volume;
 Pipeline pipeline;
 StreamCopy copySongToPipeline(pipeline, currentFile, 1024 * 8);
-
 BluetoothA2DPSource a2dp_source;
 
 std::map<uint16_t, song> mapLibrary;
 
 static TaskHandle_t taskHandleAudio = NULL;
-static TaskHandle_t taskHandleSwitch = NULL;
+static TaskHandle_t taskHandleAudioControl = NULL;
 
-// static QueueHandle_t playing;
+static QueueHandle_t queueAudioControl;
+
 SemaphoreHandle_t mutexPlaying;
 
 int32_t a2dpAudioCallback(uint8_t* data, int32_t size) {
@@ -63,10 +63,60 @@ int32_t a2dpAudioCallback(uint8_t* data, int32_t size) {
     return(size);
 }
 
+void avrcCallback(uint8_t id, bool isReleased) {
+    if(isReleased) {
+        Serial.println(id);
+        switch (id) {
+            case ESP_AVRC_PT_CMD_PAUSE:
+                Serial.println("pause");
+                char msg[64] = "pause";
+                xQueueSend(queueAudioControl, msg, 0);
+                break;
+            case ESP_AVRC_PT_CMD_FORWARD: {
+                Serial.println("forward");
+                // playing=false;
+                char msg[64] = "forward";
+                xQueueSend(queueAudioControl, msg, 0);
+                break;
+            }
+            default:
+                break;
+        }
 
+    }
+}
+
+
+void taskAudioControl(void *param) {
+    while(1) {
+        // recieved control message in queue
+        char msg[64];
+        if(xQueueReceive(queueAudioControl, (void*)&msg, 0) == pdTRUE) {
+            if(strcmp(msg, "pause") == 0) {
+                playing.fetch_xor(1);
+            } else if(strcmp(msg, "forward") == 0) {
+                if(!future.empty()) {
+                    currentFile = SD.open(mapLibrary[future.front()].path);
+                    future.pop_front();
+                } else {
+                    playing = 0;
+                }
+            }
+        }
+        if(playing) {
+            if(!currentFile.available()) {
+                if(future.front()) {
+
+                } else {
+                    playing = 0;
+                }
+            }
+        }
+        vTaskDelay(pdTICKS_TO_MS(1));
+    }
+}
 
 void taskAudio(void *param) {
-    char msg[256];
     while(1) {
         if(playing) {
             int bytesRead = copySongToPipeline.copy();
@@ -80,37 +130,6 @@ void taskAudio(void *param) {
     vTaskDelete(NULL);
 }
 
-void avrcCallback(uint8_t id, bool isReleased) {
-    if(isReleased) {
-
-        switch (id) {
-            case ESP_AVRC_PT_CMD_PAUSE:
-                Serial.println("pause");
-                playing.fetch_xor(1);
-                // playing = !playing;
-                break;
-            case ESP_AVRC_PT_CMD_FORWARD: {
-                Serial.println("skip forward");
-                // playing=false;
-                  
-                currentFile = SD.open(mapLibrary[future.front()].path);
-                  
-                // Serial.println("buh");
-                future.pop_front();
-                // playing=true;
-                // streamProcessed.clear();
-                // Serial.println(future.front());
-                // xQueueSend(queueHandleSwitch, (void *)mapLibrary[future.front()].path, 10);
-                // Serial.println(currentFile.name());
-                // switching = true;
-                break;
-            }
-            default:
-                break;
-        }
-
-    }
-}
 
 // rewrite this in the future
 void sdTraverse(const char* path) {
@@ -138,13 +157,12 @@ void sdTraverse(const char* path) {
 }
 
 void preSetup() {
-    // playing = xQueueCreate(8, sizeof(bool));
+    queueAudioControl = xQueueCreate(4, 64);
+    
     xTaskCreatePinnedToCore(taskAudio, "taskAudio", 1024*3, NULL, 15, &taskHandleAudio, 1);
-    // mutexPlaying = xSemaphoreCreateMutex();
-    // xTaskCreatePinnedToCore(taskSwitchCurrentFile, "taskSwitchCurrentFile", 1024*3, NULL, 20, &taskHandleSwitch, 1);
+    xTaskCreatePinnedToCore(taskAudioControl, "taskAudioControl", 1024*3, NULL, 10, &taskHandleAudioControl, 1);
 
     
-
     currentFile = SD.open("/library/ARIRANG/SWIM.mp3");
 }
 
@@ -197,7 +215,7 @@ void futureAdd(uint16_t id, std::string loc) {
 
 void futureNext() {
     if(future.front()) {
-        
+
     } else {
         playing = 0;
     }
