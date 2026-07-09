@@ -32,6 +32,7 @@ ResampleStreamT<ParabolicInterpolator> resampler;
 MP3DecoderHelix helix;
 EncodedAudioStream decoder(&helix);
 VolumeStream volume;
+MeasuringStream measure;
 Pipeline pipeline;
 StreamCopy copySongToPipeline(pipeline, currentFile, 1024 * 8);
 BluetoothA2DPSource a2dp_source;
@@ -68,15 +69,15 @@ void avrcCallback(uint8_t id, bool isReleased) {
         Serial.println(id);
         switch (id) {
             case ESP_AVRC_PT_CMD_PAUSE: {
-                Serial.println("pause");
-                char qmsg[64] = "pause";
+                Serial.println("PAUSE");
+                char qmsg[64] = "PAUSE";
                 xQueueSend(queueAudioControl, qmsg, 0);
                 break;
             }   
             case ESP_AVRC_PT_CMD_FORWARD: {
-                Serial.println("forward");
+                Serial.println("FORWARD");
                 // playing=false;
-                char qmsg[64] = "forward";
+                char qmsg[64] = "FORWARD";
                 xQueueSend(queueAudioControl, qmsg, 0);
                 break;
             }
@@ -90,10 +91,48 @@ void avrcCallback(uint8_t id, bool isReleased) {
 // takes new path, reopen if mutex is available
 void changeCurrentFile(const char* path) {
     if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
-        currentFile.close();
-        currentFile = SD.open(path);
+        if(SD.exists(path)) {
+            currentFile.close();
+            currentFile = SD.open(path);
+        } else {
+            Serial.println("path not found");
+        }
         xSemaphoreGive(mutexCurrentFile);
     }
+}
+
+void seekCurrentFile(const uint32_t pos) {
+    if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
+        currentFile.seek(pos);
+        xSemaphoreGive(mutexCurrentFile);
+    }
+}
+
+uint32_t positionCurrentFile() {
+    if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
+        uint32_t position = currentFile.position();
+        xSemaphoreGive(mutexCurrentFile);
+        return position;
+    }
+    return 0;
+}
+
+uint32_t sizeCurrentFile() {
+    if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
+        uint32_t size = currentFile.size();
+        xSemaphoreGive(mutexCurrentFile);
+        return size;
+    }
+    return 0;
+}
+
+int availableCurrentFile() {
+    if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
+        int available = currentFile.available();
+        xSemaphoreGive(mutexCurrentFile);
+        return available;
+    }
+    return 0;
 }
 
 void taskAudioControl(void *param) {
@@ -101,10 +140,10 @@ void taskAudioControl(void *param) {
         // recieved control message in queue
         char msg[64];
         if(xQueueReceive(queueAudioControl, (void*)&msg, 0) == pdTRUE) {
-            if(strcmp(msg, "pause") == 0) {
+            if(strcmp(msg, "PAUSE") == 0) {
                 playing.fetch_xor(1);
             }
-            if(strcmp(msg, "forward") == 0) {
+            if(strcmp(msg, "FORWARD") == 0) {
                 if(!future.empty()) {
                     changeCurrentFile(mapLibrary[future.front()].path);
                     future.pop_front();
@@ -112,10 +151,33 @@ void taskAudioControl(void *param) {
                     playing = 0;
                 }
             }
+            if(strcmp(msg, "BACKWARD") == 0) {
+                if(!history.empty()) {
+                    changeCurrentFile(mapLibrary[history.front()].path);
+                    history.pop();
+                } else {
+                    seekCurrentFile(0);
+                }
+            }
+            if(strncmp(msg, "SEEK:", 5) == 0) {
+                char seekTimeChar[5];
+                strncpy(seekTimeChar, &msg[5], 3);
+                seekTimeChar[4] = '\0';
+                uint32_t size = sizeCurrentFile();
+                int64_t seekByte = positionCurrentFile() + atoi(seekTimeChar) * measure.bytesPerSecond();
+                if(seekByte < 0) {
+                    seekByte = 0;
+                }
+                if(seekByte > size) {
+                    seekByte = size;
+                }
+                Serial.println(seekByte);
+                seekCurrentFile(seekByte);
+            }
         }
         if(playing) {
-            if(currentFile.available() == 0) {
-                char qmsg[64] = "forward";
+            if(availableCurrentFile() == 0) {
+                char qmsg[64] = "FORWARD";
                 xQueueSend(queueAudioControl, qmsg, 0);
                 Serial.println("done");
             }
@@ -128,7 +190,10 @@ void taskAudioControl(void *param) {
 void taskAudio(void *param) {
     while(1) {
         if(playing) {
-            copySongToPipeline.copy();
+            if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
+                copySongToPipeline.copy();
+                xSemaphoreGive(mutexCurrentFile);
+            }    
         }
         vTaskDelay(pdTICKS_TO_MS(1));
     }
@@ -182,6 +247,7 @@ void setupPipeline() {
     rcfg.to_sample_rate = 44100;
     resampler.begin(rcfg);
 
+    pipeline.add(measure);
     pipeline.add(decoder);
     pipeline.add(resampler);
     // pipeline.add(volume);
