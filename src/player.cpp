@@ -13,6 +13,7 @@
 
 #include <deque>
 #include <queue>
+#include <atomic>
 
 uint16_t bufferProcessedSize = 1024 * 16;
 BufferRTOS<uint8_t> bufferProcessed(bufferProcessedSize);
@@ -24,7 +25,7 @@ uint16_t currentId = 0;
 std::deque<uint16_t> future; //queue for play next
 std::queue<uint16_t> history;
 
-bool playing = true;
+std::atomic_int playing{0};
 bool switching = false;
 
 ResampleStreamT<ParabolicInterpolator> resampler;
@@ -62,37 +63,18 @@ int32_t a2dpAudioCallback(uint8_t* data, int32_t size) {
     return(size);
 }
 
-void setPlaying(bool nextState) {
-    if(xSemaphoreTake(mutexPlaying, portMAX_DELAY) == pdTRUE) {
-        playing = nextState;
-        xSemaphoreGive(mutexPlaying);
-    }
-}
+
 
 void taskAudio(void *param) {
     char msg[256];
     while(1) {
-        // if(xSemaphoreTake(mutexAudio, 0) == pdTRUE) {
-            // if(!playing) {
-            // static uint8_t zeros[512] = {0};
-            // streamProcessed.write(zeros, sizeof(zeros));
-            // } else {
-            if(playing) {
-                int bytesRead = copySongToPipeline.copy();
-                if(currentFile.available() == 0) {
-                    playing = false;
-                    Serial.println("done");
-                }
+        if(playing) {
+            int bytesRead = copySongToPipeline.copy();
+            if(currentFile.available() == 0) {
+                playing = 0;
+                Serial.println("done");
             }
-
-            
-            // Serial.println(bytesRead);
-
-            // }
-            // xSemaphoreGive(mutexAudio);
-        // } else {
-        //     vTaskDelay(pdTICKS_TO_MS(1));
-        // }
+        }
         vTaskDelay(pdTICKS_TO_MS(1));
     }
     vTaskDelete(NULL);
@@ -104,7 +86,8 @@ void avrcCallback(uint8_t id, bool isReleased) {
         switch (id) {
             case ESP_AVRC_PT_CMD_PAUSE:
                 Serial.println("pause");
-                playing = !playing;
+                playing.fetch_xor(1);
+                // playing = !playing;
                 break;
             case ESP_AVRC_PT_CMD_FORWARD: {
                 Serial.println("skip forward");
@@ -157,7 +140,7 @@ void sdTraverse(const char* path) {
 void preSetup() {
     // playing = xQueueCreate(8, sizeof(bool));
     xTaskCreatePinnedToCore(taskAudio, "taskAudio", 1024*3, NULL, 15, &taskHandleAudio, 1);
-    mutexPlaying = xSemaphoreCreateMutex();
+    // mutexPlaying = xSemaphoreCreateMutex();
     // xTaskCreatePinnedToCore(taskSwitchCurrentFile, "taskSwitchCurrentFile", 1024*3, NULL, 20, &taskHandleSwitch, 1);
 
     
@@ -214,9 +197,9 @@ void futureAdd(uint16_t id, std::string loc) {
 
 void futureNext() {
     if(future.front()) {
-
+        
     } else {
-        playing = false;
+        playing = 0;
     }
 }
 

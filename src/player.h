@@ -3,6 +3,8 @@
 #include <map>
 #include <AudioTools.h>
 
+#include <atomic>
+
 #include <SD.h>
 
 int32_t a2dpAudioCallback(uint8_t* data, int32_t size);
@@ -28,4 +30,4 @@ extern StreamCopy copySongToPipeline;
 extern QueueStream<uint8_t> streamProcessed;
 extern File currentFile;
 
-extern bool playing;
+extern std::atomic_int playing;
