@@ -43,7 +43,7 @@ static TaskHandle_t taskHandleAudioControl = NULL;
 
 static QueueHandle_t queueAudioControl;
 
-SemaphoreHandle_t mutexPlaying;
+SemaphoreHandle_t mutexCurrentFile;
 
 int32_t a2dpAudioCallback(uint8_t* data, int32_t size) {
     bool p;
@@ -87,6 +87,14 @@ void avrcCallback(uint8_t id, bool isReleased) {
     }
 }
 
+// takes new path, reopen if mutex is available
+void changeCurrentFile(const char* path) {
+    if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
+        currentFile.close();
+        currentFile = SD.open(path);
+        xSemaphoreGive(mutexCurrentFile);
+    }
+}
 
 void taskAudioControl(void *param) {
     while(1) {
@@ -95,9 +103,10 @@ void taskAudioControl(void *param) {
         if(xQueueReceive(queueAudioControl, (void*)&msg, 0) == pdTRUE) {
             if(strcmp(msg, "pause") == 0) {
                 playing.fetch_xor(1);
-            } else if(strcmp(msg, "forward") == 0) {
+            }
+            if(strcmp(msg, "forward") == 0) {
                 if(!future.empty()) {
-                    currentFile = SD.open(mapLibrary[future.front()].path);
+                    changeCurrentFile(mapLibrary[future.front()].path);
                     future.pop_front();
                 } else {
                     playing = 0;
@@ -154,12 +163,13 @@ void sdTraverse(const char* path) {
 
 void preSetup() {
     queueAudioControl = xQueueCreate(4, 64);
+    mutexCurrentFile = xSemaphoreCreateMutex();
     
     xTaskCreatePinnedToCore(taskAudio, "taskAudio", 1024*3, NULL, 15, &taskHandleAudio, 1);
     xTaskCreatePinnedToCore(taskAudioControl, "taskAudioControl", 1024*3, NULL, 10, &taskHandleAudioControl, 1);
 
     
-    currentFile = SD.open("/library/ARIRANG/SWIM.mp3");
+    changeCurrentFile("/library/ARIRANG/SWIM.mp3");
 }
 
 void setupPipeline() {
