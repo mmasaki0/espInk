@@ -163,15 +163,17 @@ void taskAudioControl(void *param) {
                 char seekTimeChar[5];
                 strncpy(seekTimeChar, &msg[5], 3);
                 seekTimeChar[4] = '\0';
+
                 uint32_t size = sizeCurrentFile();
                 int64_t seekByte = positionCurrentFile() + atoi(seekTimeChar) * measure.bytesPerSecond();
+
                 if(seekByte < 0) {
                     seekByte = 0;
                 }
                 if(seekByte > size) {
                     seekByte = size;
                 }
-                Serial.println(seekByte);
+                
                 seekCurrentFile(seekByte);
             }
         }

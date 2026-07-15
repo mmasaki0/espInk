@@ -21,16 +21,6 @@ extern File currentFile;
 
 // WebServer server(80);
 
-static TaskHandle_t taskHandleDisplay = NULL;
-
-
-
-
-
-
-void taskDisplay(void *param) {
-
-}
 
 void setup() {
   Serial.begin(115200);
@@ -69,9 +59,16 @@ void setup() {
   // displayWriteText(std::to_string(analogRead(35) * 2));
 }
 
+char qmsg[64] = "PLAYER:";
+
 void loop() {
   // Serial.println(streamProcessed.available());
-  // vTaskDelay(10);
+  strcpy(qmsg, "PLAYER:");
+  xQueueSend(queueDisplay, qmsg, 0);
+  vTaskDelay(10000);
+  strcpy(qmsg, "MENU:");
+  xQueueSend(queueDisplay, qmsg, 0);
+  vTaskDelay(10000);
 }
 
 
