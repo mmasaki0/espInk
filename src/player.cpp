@@ -117,24 +117,6 @@ uint32_t positionCurrentFile() {
     return 0;
 }
 
-uint32_t sizeCurrentFile() {
-    if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
-        uint32_t size = currentFile.size();
-        xSemaphoreGive(mutexCurrentFile);
-        return size;
-    }
-    return 0;
-}
-
-int availableCurrentFile() {
-    if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
-        int available = currentFile.available();
-        xSemaphoreGive(mutexCurrentFile);
-        return available;
-    }
-    return 0;
-}
-
 void taskAudioControl(void *param) {
     while(1) {
         // recieved control message in queue
@@ -164,21 +146,27 @@ void taskAudioControl(void *param) {
                 strncpy(seekTimeChar, &msg[5], 3);
                 seekTimeChar[4] = '\0';
 
-                uint32_t size = sizeCurrentFile();
-                int64_t seekByte = positionCurrentFile() + atoi(seekTimeChar) * measure.bytesPerSecond();
+                if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
+                    uint32_t size = currentFile.size();
+                    xSemaphoreGive(mutexCurrentFile);
+                    int64_t seekByte = positionCurrentFile() + atoi(seekTimeChar) * measure.bytesPerSecond();
 
-                if(seekByte < 0) {
-                    seekByte = 0;
+                    if(seekByte < 0) {
+                        seekByte = 0;
+                    }
+                    if(seekByte > size) {
+                        seekByte = size;
+                    }
+                    
+                    seekCurrentFile(seekByte);
                 }
-                if(seekByte > size) {
-                    seekByte = size;
-                }
-                
-                seekCurrentFile(seekByte);
             }
         }
+        //check if file is done reading then skip to next song
         if(playing) {
-            if(availableCurrentFile() == 0) {
+            if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
+                int available = currentFile.available();
+                xSemaphoreGive(mutexCurrentFile);
                 char qmsg[64] = "FORWARD";
                 xQueueSend(queueAudioControl, qmsg, 0);
                 Serial.println("done");
