@@ -63,12 +63,12 @@ char qmsg[64] = "PLAYER:";
 
 void loop() {
   // Serial.println(streamProcessed.available());
-  strcpy(qmsg, "PLAYER:");
-  xQueueSend(queueDisplay, qmsg, 0);
-  vTaskDelay(10000);
-  strcpy(qmsg, "MENU:");
-  xQueueSend(queueDisplay, qmsg, 0);
-  vTaskDelay(10000);
+  // strcpy(qmsg, "PLAYER:");
+  // xQueueSend(queueDisplay, qmsg, 0);
+  // vTaskDelay(10000);
+  // strcpy(qmsg, "MENU:");
+  // xQueueSend(queueDisplay, qmsg, 0);
+  // vTaskDelay(10000);
 }
 
 

@@ -1,5 +1,6 @@
 #include <map>
 #include "player.h"
+#include "display.h"
 
 #include <SD.h>
 
@@ -69,16 +70,33 @@ void avrcCallback(uint8_t id, bool isReleased) {
         Serial.println(id);
         switch (id) {
             case ESP_AVRC_PT_CMD_PAUSE: {
-                Serial.println("PAUSE");
-                char qmsg[64] = "PAUSE";
-                xQueueSend(queueAudioControl, qmsg, 0);
+                // Serial.println("PAUSE");
+                // char qmsg[64] = "PAUSE";
+                // xQueueSend(queueAudioControl, qmsg, 0);
+                
+                //temp code to iterate through select position
+                if(xSemaphoreTake(mutexSelect, portMAX_DELAY) == pdTRUE) {
+                    if(playerSelectIndex == 7) {
+                        playerSelectIndex = 0;
+                    } else {
+                        playerSelectIndex++;
+                    }
+                    xSemaphoreGive(mutexSelect);
+                    char dmsg[64] = "PLAYER:";
+                    xQueueSend(queueDisplay, dmsg, 0);
+                }
+
                 break;
             }   
             case ESP_AVRC_PT_CMD_FORWARD: {
                 Serial.println("FORWARD");
-                // playing=false;
-                char qmsg[64] = "FORWARD";
-                xQueueSend(queueAudioControl, qmsg, 0);
+                // char qmsg[64] = "FORWARD";
+                // xQueueSend(queueAudioControl, qmsg, 0);
+
+
+                char dmsg[64] = "MENU:";
+                xQueueSend(queueDisplay, dmsg, 0);
+
                 break;
             }
             default:
@@ -125,7 +143,7 @@ void taskAudioControl(void *param) {
             if(strcmp(msg, "PAUSE") == 0) {
                 playing.fetch_xor(1);
             }
-            if(strcmp(msg, "FORWARD") == 0) {
+            else if(strcmp(msg, "FORWARD") == 0) {
                 if(!future.empty()) {
                     changeCurrentFile(mapLibrary[future.front()].path);
                     future.pop_front();
@@ -133,7 +151,7 @@ void taskAudioControl(void *param) {
                     playing = 0;
                 }
             }
-            if(strcmp(msg, "BACKWARD") == 0) {
+            else if(strcmp(msg, "BACKWARD") == 0) {
                 if(!history.empty()) {
                     changeCurrentFile(mapLibrary[history.front()].path);
                     history.pop();
@@ -141,7 +159,7 @@ void taskAudioControl(void *param) {
                     seekCurrentFile(0);
                 }
             }
-            if(strncmp(msg, "SEEK:", 5) == 0) {
+            else if(strncmp(msg, "SEEK:", 5) == 0) {
                 char seekTimeChar[5];
                 strncpy(seekTimeChar, &msg[5], 3);
                 seekTimeChar[4] = '\0';
