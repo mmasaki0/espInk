@@ -1,3 +1,8 @@
+#include <string>
+#include <atomic>
+#include <map>
+#include <tuple>
+
 #include <GxEPD2_BW.h>
 #include <Fonts/FreeMono12pt7b.h>
 #include <Fonts/FreeMonoBold9pt7b.h>
@@ -5,11 +10,6 @@
 #include <Fonts/FreeSerifBold9pt7b.h>
 
 #include "bitmaps.h"
-
-#include <string>
-#include <atomic>
-#include <map>
-#include <tuple>
 
 #define EPD_BUSY 22
 #define EPD_RST 20

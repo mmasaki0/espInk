@@ -1,6 +1,7 @@
 #include <map>
-#include "player.h"
-#include "display.h"
+#include <deque>
+#include <queue>
+#include <atomic>
 
 #include <SD.h>
 
@@ -8,13 +9,11 @@
 #include <AudioTools/Communication/A2DPStream.h>
 #include <AudioTools/AudioCodecs/CodecMP3Helix.h>
 #include <AudioTools/Disk/AudioSourceSD.h>
-
 #include <BluetoothA2DPSource.h>
 #include <esp_avrc_api.h>
 
-#include <deque>
-#include <queue>
-#include <atomic>
+#include "player.h"
+#include "display.h"
 
 uint16_t bufferProcessedSize = 1024 * 16;
 BufferRTOS<uint8_t> bufferProcessed(bufferProcessedSize);
