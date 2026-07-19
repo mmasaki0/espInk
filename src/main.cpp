@@ -1,17 +1,16 @@
+#include <string>
+
 #include <Arduino.h>
 #include <SPI.h>
 #include <SD.h>
 
-#include <string>
-
+#include <AudioTools/Concurrency/RTOS.h>
 // #include <Wifi.h>
 // #include <WebServer.h>
 // #include "FS.h"
 // #include <LittleFS.h>
-#include <config.h>
 
-#include <AudioTools/Concurrency/RTOS.h>
-
+#include "config.h"
 #include "player.h"
 #include "display.h"
 
@@ -45,6 +44,7 @@ void setup() {
   
   vTaskDelay(1000 / portTICK_PERIOD_MS);
 
+  changeCurrentFile("/library/ARIRANG/2.0.mp3");
   futureAdd(2, "front");
   futureAdd(3, "front");
   futureAdd(5, "front");

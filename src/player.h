@@ -12,6 +12,7 @@ void setupPipeline();
 void setupA2DP();
 void sdTraverse(const char* path);
 
+void changeCurrentFile(const char* path);
 void futureAdd(uint16_t id, std::string loc);
 
 void taskAudio(void *param);

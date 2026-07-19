@@ -67,7 +67,7 @@ void taskDisplay(void *param) {
                 } while (display.nextPage());
             }
         }
-        vTaskDelay(pdTICKS_TO_MS(500));
+        vTaskDelay(pdTICKS_TO_MS(1));
     }
     vTaskDelete(NULL);
 }
