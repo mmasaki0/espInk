@@ -26,6 +26,11 @@ SemaphoreHandle_t mutexSelect;
 uint8_t playerSelectIndex = 0;
 uint8_t menuSelectIndex = 0;
 
+uint16_t colorFront = GxEPD_BLACK;
+uint16_t colorBack = GxEPD_WHITE;
+// uint16_t colorFront = GxEPD_WHITE;
+// uint16_t colorBack = GxEPD_BLACK;
+
 //maps selection index to screen position
 std::map<uint8_t, std::tuple<uint16_t, uint16_t>> playerSelectPos = {
     {0, {104, 200}},
@@ -56,9 +61,9 @@ void taskDisplay(void *param) {
                 display.setPartialWindow(40, 200, 160, 64);
                 display.firstPage();
                 do {
-                    display.fillScreen(GxEPD_WHITE);
-                    display.drawXBitmap(40, 200, bitmap_player, 160, 64, GxEPD_BLACK);
-                    display.drawRect(std::get<0>(playerSelectPos[playerSelectIndex]), std::get<1>(playerSelectPos[playerSelectIndex]), 32, 32, GxEPD_BLACK);
+                    display.fillScreen(colorFront);
+                    display.drawXBitmap(40, 200, bitmap_player, 160, 64, colorBack);
+                    display.drawRect(std::get<0>(playerSelectPos[playerSelectIndex]), std::get<1>(playerSelectPos[playerSelectIndex]), 32, 32, colorBack);
                 } while (display.nextPage());
                 
             }
@@ -71,7 +76,7 @@ void taskDisplay(void *param) {
                 // display.fillScreen(GxEPD_WHITE);
                 display.firstPage();
                 do {
-                    display.fillScreen(GxEPD_BLACK);
+                    display.fillScreen(colorBack);
                     // display.drawFastHLine(0, 100, 1, GxEPD_BLACK);
                 } while (display.nextPage());
             }
@@ -82,7 +87,7 @@ void taskDisplay(void *param) {
                 // display.fillScreen(GxEPD_WHITE);
                 display.firstPage();
                 do {
-                    display.fillScreen(GxEPD_WHITE);
+                    display.fillScreen(colorFront);
                     // display.drawFastHLine(0, 100, 1, GxEPD_BLACK);
                 } while (display.nextPage());
             }
@@ -92,7 +97,7 @@ void taskDisplay(void *param) {
             refreshCounter++;
             Serial.println(lastRefresh); Serial.println(refreshCounter);
         } else {
-            // Serial.println("pdfalse");
+            // refresh screen during screen downtime
             if(refreshCounter > 2 && xTaskGetTickCount() > lastRefresh + 5000) {
                 Serial.println(lastRefresh); Serial.println(refreshCounter);
                 display.setFullWindow();
@@ -113,7 +118,7 @@ void setupDisplay() {
 
     display.init(115200);
     display.setRotation(2);
-    display.setTextColor(GxEPD_BLACK);
+    display.setTextColor(colorFront);
     display.setFont(&FreeSerif9pt7b);
 }
 
@@ -132,7 +137,7 @@ void displayWriteText(std::string text) {
     display.firstPage();
         do {
         display.setCursor(100, 100);
-        display.fillScreen(GxEPD_WHITE);
+        display.fillScreen(colorBack);
         display.print(text.c_str());
         } while (display.nextPage()); // Automatically renders and flushes over SPI
     display.hibernate();
