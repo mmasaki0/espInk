@@ -68,7 +68,10 @@ void loop() {
   // strcpy(qmsg, "PLAYER:");
   // xQueueSend(queueDisplay, qmsg, 0);
   // vTaskDelay(10000);
-  // strcpy(qmsg, "MENU:");
-  // xQueueSend(queueDisplay, qmsg, 0);
-  // vTaskDelay(10000);
+  strcpy(qmsg, "MENU");
+  xQueueSend(queueDisplay, qmsg, 0);
+  vTaskDelay(10000);
+    strcpy(qmsg, "MENU:");
+  xQueueSend(queueDisplay, qmsg, 0);
+  vTaskDelay(10000);
 }

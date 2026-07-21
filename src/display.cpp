@@ -42,10 +42,15 @@ GxEPD2_BW<GxEPD2_370_GDEY037T03, GxEPD2_370_GDEY037T03::HEIGHT> display(GxEPD2_3
 
 
 void taskDisplay(void *param) {
+    int refreshCounter = 0;
+    TickType_t lastRefresh = 0;
+    char prevMsg[64];
     while(1) {
         //recieve message in queue
         char msg[64];
-        if(xQueueReceive(queueDisplay, (void*)&msg, portMAX_DELAY) == pdTRUE) {
+        if(xQueueReceive(queueDisplay, (void*)&msg, 0) == pdTRUE) {
+
+            //player screen
             if(strncmp(msg, "PLAYER:", 7) == 0) {
                 Serial.println("top");
                 display.setPartialWindow(40, 200, 160, 64);
@@ -57,14 +62,43 @@ void taskDisplay(void *param) {
                 } while (display.nextPage());
                 
             }
-            else if(strncmp(msg, "MENU:", 5) == 0) {
-                Serial.println("top");
+
+            //menu screen
+            else if(strcmp(msg, "MENU") == 0) {
+                Serial.println("full menu");
+                // display.setPartialWindow(0, 0, display.width(), display.height());
+                display.setPartialWindow(40, 200, 160, 64);
+                // display.fillScreen(GxEPD_WHITE);
+                display.firstPage();
+                do {
+                    display.fillScreen(GxEPD_BLACK);
+                    // display.drawFastHLine(0, 100, 1, GxEPD_BLACK);
+                } while (display.nextPage());
+            }
+            else if(strcmp(msg, "MENU:") == 0) {
+                Serial.println("full menu");
+                // display.setPartialWindow(0, 0, display.width(), display.height());
                 display.setPartialWindow(40, 200, 160, 64);
                 // display.fillScreen(GxEPD_WHITE);
                 display.firstPage();
                 do {
                     display.fillScreen(GxEPD_WHITE);
+                    // display.drawFastHLine(0, 100, 1, GxEPD_BLACK);
                 } while (display.nextPage());
+            }
+
+            strcpy(prevMsg, msg);
+            lastRefresh = xTaskGetTickCount();
+            refreshCounter++;
+            Serial.println(lastRefresh); Serial.println(refreshCounter);
+        } else {
+            // Serial.println("pdfalse");
+            if(refreshCounter > 2 && xTaskGetTickCount() > lastRefresh + 5000) {
+                Serial.println(lastRefresh); Serial.println(refreshCounter);
+                display.setFullWindow();
+                display.refresh();
+                lastRefresh = xTaskGetTickCount();
+                refreshCounter = 0;
             }
         }
         vTaskDelay(pdTICKS_TO_MS(1));
