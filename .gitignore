@@ -4,4 +4,4 @@
 .vscode/launch.json
 .vscode/ipch
 config.h
-.mp3
+*.mp3
