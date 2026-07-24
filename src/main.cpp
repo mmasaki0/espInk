@@ -24,7 +24,6 @@ extern File currentFile;
 void setup() {
   Serial.begin(115200);
   SPI.begin(5, 21, 19, 27);
-  // AudioToolsLogger.begin(Serial, AudioToolsLogLevel::Info);
   
   vTaskDelay(1000 / portTICK_PERIOD_MS);
 
@@ -39,26 +38,14 @@ void setup() {
   sdTraverse("/library");
 
   
-  setupA2DP();
-  displayWriteText("bluetooth connected");
+  // setupA2DP();
+  // displayWriteText("bluetooth connected");
   
   vTaskDelay(1000 / portTICK_PERIOD_MS);
 
-  changeCurrentFile("/library/ARIRANG/2.0.mp3");
   futureAdd(2, "front");
   futureAdd(3, "front");
   futureAdd(5, "front");
-
-  // vTaskDelay(10000);
-  // Serial.println("manusal sawp");
-  // currentFile = SD.open("/library/ARIRANG/2.0.mp3");
-
-  
-  // xTaskCreatePinnedToCore(taskDisplay, "taskDisplay", 2048, NULL, 5, &taskHandleDisplay, 1);
-  
-
-
-  // displayWriteText(std::to_string(analogRead(35) * 2));
 }
 
 char qmsg[64] = "PLAYER:";

@@ -120,6 +120,7 @@ void setupDisplay() {
     display.setRotation(2);
     display.setTextColor(colorFront);
     display.setFont(&FreeSerif9pt7b);
+    display.setTextWrap(false);
 }
 
 

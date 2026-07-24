@@ -1,6 +1,5 @@
 #pragma once
 
-#include <map>
 #include <atomic>
 
 #include <SD.h>
@@ -17,16 +16,7 @@ void futureAdd(uint16_t id, std::string loc);
 
 void taskAudio(void *param);
 
-struct song {
-    char path[256];
-    song() {}
-    song(const char *p) {
-        strncpy(path, p, sizeof(path) - 1);
-        path[sizeof(path) - 1] = '\0';
-    };
-};
 
-extern std::map<uint16_t, song> mapLibrary;
 extern StreamCopy copySongToPipeline;
 extern QueueStream<uint8_t> streamProcessed;
 extern File currentFile;

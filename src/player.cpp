@@ -14,13 +14,13 @@
 
 #include "player.h"
 #include "display.h"
+#include "files.h"
 
 uint16_t bufferProcessedSize = 1024 * 16;
 BufferRTOS<uint8_t> bufferProcessed(bufferProcessedSize);
 QueueStream<uint8_t> streamProcessed(bufferProcessed);
 
 File currentFile;
-uint16_t currentId = 0;
 
 std::deque<uint16_t> future; //queue for play next
 std::queue<uint16_t> history;
@@ -36,8 +36,6 @@ MeasuringStream measure;
 Pipeline pipeline;
 StreamCopy copySongToPipeline(pipeline, currentFile, 1024 * 8);
 BluetoothA2DPSource a2dp_source;
-
-std::map<uint16_t, song> mapLibrary;
 
 static TaskHandle_t taskHandleAudio = NULL;
 static TaskHandle_t taskHandleAudioControl = NULL;
@@ -263,31 +261,6 @@ void taskAudio(void *param) {
     vTaskDelete(NULL);
 }
 
-
-// rewrite this in the future
-void sdTraverse(const char* path) {
-    File dir = SD.open(path);
-    File next = dir.openNextFile();
-    while(next) {
-        if(next.isDirectory()) {
-            char newpath[256];
-            snprintf(newpath, sizeof(newpath), "%s/%s", path, next.name());
-            sdTraverse(newpath);
-        } else {
-            char extension[4];
-            strncpy(extension, next.name() + strlen(next.name()) - 3, 3);
-            extension[3] = '\0';
-            if(strcmp(extension, "mp3") == 0) {
-                Serial.println(next.name());
-                mapLibrary[currentId++] = song(next.path());
-            }
-        }
-        next.close();
-        next = dir.openNextFile();
-    }
-    next.close();
-    dir.close();
-}
 
 void preSetup() {
     queueAudioControl = xQueueCreate(4, 64);
