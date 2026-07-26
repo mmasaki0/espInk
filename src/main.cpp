@@ -13,6 +13,7 @@
 #include "config.h"
 #include "player.h"
 #include "display.h"
+#include "files.h"
 
 extern File currentFile;
 
@@ -35,11 +36,11 @@ void setup() {
     return;
   }
 
-  sdTraverse("/library");
+  libraryScan("/lib");
 
   
-  // setupA2DP();
-  // displayWriteText("bluetooth connected");
+  setupA2DP();
+  displayWriteText("bluetooth connected");
   
   vTaskDelay(1000 / portTICK_PERIOD_MS);
 
@@ -55,10 +56,10 @@ void loop() {
   // strcpy(qmsg, "PLAYER:");
   // xQueueSend(queueDisplay, qmsg, 0);
   // vTaskDelay(10000);
-  strcpy(qmsg, "MENU");
-  xQueueSend(queueDisplay, qmsg, 0);
-  vTaskDelay(10000);
-    strcpy(qmsg, "MENU:");
-  xQueueSend(queueDisplay, qmsg, 0);
-  vTaskDelay(10000);
+  // strcpy(qmsg, "MENU");
+  // xQueueSend(queueDisplay, qmsg, 0);
+  // vTaskDelay(10000);
+  //   strcpy(qmsg, "MENU:");
+  // xQueueSend(queueDisplay, qmsg, 0);
+  // vTaskDelay(10000);
 }

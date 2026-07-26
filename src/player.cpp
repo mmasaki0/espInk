@@ -1,4 +1,5 @@
-#include <map>
+#include <vector>
+#include <string>
 #include <deque>
 #include <queue>
 #include <atomic>
@@ -67,84 +68,82 @@ void avrcCallback(uint8_t id, bool isReleased) {
         Serial.println(id);
         switch (id) {
             case ESP_AVRC_PT_CMD_PAUSE: {
-                // Serial.println("PAUSE");
-                // char qmsg[64] = "PAUSE";
-                // xQueueSend(queueAudioControl, qmsg, 0);
+                Serial.println("PAUSE");
+                char qmsg[64] = "PAUSE";
+                xQueueSend(queueAudioControl, qmsg, 0);
                 
                 //temp code to iterate through select position
-                if(xSemaphoreTake(mutexSelect, portMAX_DELAY) == pdTRUE) {
-                    if(playerSelectIndex == 7) {
-                        playerSelectIndex = 0;
-                    } else {
-                        playerSelectIndex++;
-                    }
-                    xSemaphoreGive(mutexSelect);
-                    char dmsg[64] = "PLAYER:";
-                    xQueueSend(queueDisplay, dmsg, 0);
-                }
+                // if(xSemaphoreTake(mutexSelect, portMAX_DELAY) == pdTRUE) {
+                //     if(playerSelectIndex == 7) {
+                //         playerSelectIndex = 0;
+                //     } else {
+                //         playerSelectIndex++;
+                //     }
+                //     xSemaphoreGive(mutexSelect);
+                //     char dmsg[64] = "PLAYER:";
+                //     xQueueSend(queueDisplay, dmsg, 0);
+                // }
                 //temp code end
 
                 break;
             }   
             case ESP_AVRC_PT_CMD_FORWARD: {
-                // Serial.println("FORWARD");
-                // char qmsg[64] = "FORWARD";
-                // xQueueSend(queueAudioControl, qmsg, 0);
+                Serial.println("FORWARD");
+                char qmsg[64] = "FORWARD";
+                xQueueSend(queueAudioControl, qmsg, 0);
 
                 //temp code to press currently selected
-                if(xSemaphoreTake(mutexSelect, portMAX_DELAY) == pdTRUE) {
-                    char qmsg[64];
-                    switch (playerSelectIndex) {
-                        case 0: {
-                            // pause
-                            strcpy(qmsg, "PAUSE");
-                            break;
-                        }
-                        case 1: {
-                            // seek +10
-                            strcpy(qmsg, "SEEK:+10");
-                            break;
-                        }
-                        case 2: {
-                            // forward
-                            strcpy(qmsg, "FORWARD");
-                            break;
-                        }
-                        case 3: {
-                            // loop
-                            strcpy(qmsg, "PAUSE");
-                            break;
-                        }
-                        case 4: {
-                            // volume
-                            strcpy(qmsg, "PAUSE");
-                            break;
-                        }
-                        case 5: {
-                            // shuffle
-                            strcpy(qmsg, "PAUSE");
-                            break;
-                        }
-                        case 6: {
-                            // backward
-                            strcpy(qmsg, "BACKWARD");
-                            break;
-                        }
-                        case 7: {
-                            // seek -10
-                            strcpy(qmsg, "SEEK:-10");
-                            break;
-                        }
-                        default: {
-                            break;
-                        }
-                    }
-                    xQueueSend(queueAudioControl, qmsg, 0);
-                    Serial.println(qmsg);
-                    xSemaphoreGive(mutexSelect);
-                    // char dmsg[64] = "MENU:";
-                    // xQueueSend(queueDisplay, dmsg, 0);
-                }
+                // if(xSemaphoreTake(mutexSelect, portMAX_DELAY) == pdTRUE) {
+                //     char qmsg[64];
+                //     switch (playerSelectIndex) {
+                //         case 0: {
+                //             // pause
+                //             strcpy(qmsg, "PAUSE");
+                //             break;
+                //         }
+                //         case 1: {
+                //             // seek +10
+                //             strcpy(qmsg, "SEEK:+10");
+                //             break;
+                //         }
+                //         case 2: {
+                //             // forward
+                //             strcpy(qmsg, "FORWARD");
+                //             break;
+                //         }
+                //         case 3: {
+                //             // loop
+                //             strcpy(qmsg, "PAUSE");
+                //             break;
+                //         }
+                //         case 4: {
+                //             // volume
+                //             strcpy(qmsg, "PAUSE");
+                //             break;
+                //         }
+                //         case 5: {
+                //             // shuffle
+                //             strcpy(qmsg, "PAUSE");
+                //             break;
+                //         }
+                //         case 6: {
+                //             // backward
+                //             strcpy(qmsg, "BACKWARD");
+                //             break;
+                //         }
+                //         case 7: {
+                //             // seek -10
+                //             strcpy(qmsg, "SEEK:-10");
+                //             break;
+                //         }
+                //         default: {
+                //             break;
+                //         }
+                //     }
+                //     xQueueSend(queueAudioControl, qmsg, 0);
+                //     Serial.println(qmsg);
+                //     xSemaphoreGive(mutexSelect);
+                // }
                 //temp code end
 
                 break;
@@ -157,11 +156,11 @@ void avrcCallback(uint8_t id, bool isReleased) {
 }
 
 // takes new path, reopen if mutex is available
-void changeCurrentFile(const char* path) {
+void changeCurrentFile(const std::string path) {
     if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
-        if(SD.exists(path)) {
+        if(SD.exists(path.c_str())) {
             currentFile.close();
-            currentFile = SD.open(path);
+            currentFile = SD.open(path.c_str());
         } else {
             Serial.println("path not found");
         }
@@ -195,7 +194,7 @@ void taskAudioControl(void *param) {
             }
             else if(strcmp(msg, "FORWARD") == 0) {
                 if(!future.empty()) {
-                    changeCurrentFile(mapLibrary[future.front()].path);
+                    changeCurrentFile(libraryPaths.at(future.front()));
                     future.pop_front();
                 } else {
                     playing = 0;
@@ -203,7 +202,7 @@ void taskAudioControl(void *param) {
             }
             else if(strcmp(msg, "BACKWARD") == 0) {
                 if(!history.empty()) {
-                    changeCurrentFile(mapLibrary[history.front()].path);
+                    changeCurrentFile(libraryPaths.at(history.front()));
                     history.pop();
                 } else {
                     seekCurrentFile(0);
@@ -268,9 +267,6 @@ void preSetup() {
     
     xTaskCreatePinnedToCore(taskAudio, "taskAudio", 1024*3, NULL, 15, &taskHandleAudio, 1);
     xTaskCreatePinnedToCore(taskAudioControl, "taskAudioControl", 1024*3, NULL, 10, &taskHandleAudioControl, 1);
-
-    
-    changeCurrentFile("/library/ARIRANG/SWIM.mp3");
 }
 
 void setupPipeline() {

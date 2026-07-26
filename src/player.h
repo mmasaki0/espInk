@@ -9,9 +9,8 @@
 int32_t a2dpAudioCallback(uint8_t* data, int32_t size);
 void setupPipeline();
 void setupA2DP();
-void sdTraverse(const char* path);
 
-void changeCurrentFile(const char* path);
+void changeCurrentFile(const std::string path);
 void futureAdd(uint16_t id, std::string loc);
 
 void taskAudio(void *param);

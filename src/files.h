@@ -1,10 +1,44 @@
 #pragma once
 
-#include <unordered_map>
+#include <string>
 #include <vector>
+
+extern std::vector<std::string> libraryPaths;
+
+struct ID3v1Tag {
+    bool exists = false;
+
+    char title[30];
+    char artist[30];
+    char album[30];
+    char year[4];
+};
+
+struct ID3v2Tag {
+    bool exists = false;
+
+    char identifier[3];
+    char major[1];
+    char minor[1];
+    char flags[1];
+    char size[4];
+
+    std::string TIT2; // title
+    std::string TPE1; // artists
+    std::string TPE2; // album artist
+    std::string TALB; // album
+    std::string TYER; // year
+    std::string TRCK; // track number
+    std::string USLT; // unsynced lyrics
+
+    std::vector<char> APIC; // album cover art
+};
 
 struct song {
     char path[256];
+    ID3v1Tag id3v1tag;
+    ID3v2Tag id3v21tag;
+    
     song() {}
     song(const char *p) {
         strncpy(path, p, sizeof(path) - 1);
@@ -12,108 +46,4 @@ struct song {
     };
 };
 
-namespace trie {
-    struct Range {
-        int lower;
-        int upper;
-
-        int calculateRange() {
-            return upper - lower + 1;
-        }
-
-        bool contains(int i) {
-            return i >= lower && i <= upper;
-        }
-
-    };
-
-    typedef std::vector<Range> charset;
-
-    struct node {
-        bool exists;
-        struct node** children;
-    };
-
-    class Trie {
-    public:
-        Trie(charset chars)
-            : chars(chars), numChars(0), root(nullptr) {
-            
-                for (Range r : chars) {
-                    numChars += r.calculateRange();
-                }
-
-                root = new node;
-                root->exists = false;
-                root->children = new node*[numChars];
-
-                for (int i = 0; i < numChars; i++) {
-                    root->children[i] = NULL;
-                }
-            }
-
-        bool insert(std::string key) {
-            int idx;
-            node* current = root;
-
-            for (char c : key) {
-                idx = getIdx(c);
-                if(idx == -1) {
-                    return false;
-                }
-                if(!current->children[idx] || current->children[idx] == NULL) {
-                    current = new node;
-                    current->exists = false;
-                    current->children = new node*[numChars];
-
-                    for (int i = 0; i < numChars; i++) {
-                        current->children[i] = NULL;
-                    }
-                }
-                current = current->children[idx];
-            }
-
-            current->exists = true;
-            return true; 
-        }
-
-        void cleanup() {
-            unloadNode(root);
-        }
-    private:
-        charset chars;
-        unsigned int numChars;
-        node* root;
-
-        int getIdx(char c) {
-            int ret = 0;
-
-            for(Range r: chars) {
-                if(r.contains((int)c)) {
-                    ret += int(c) - r.lower;
-                    break;
-                } else {
-                    ret += r.calculateRange();
-                }
-            }
-
-            return ret == numChars ? -1 : ret;
-        }
-
-        void unloadNode(node* top) {
-            if(!top) {
-                return;
-            }
-
-            for(int i = 0; i < numChars; i++) {
-                if(top->children[i]) {
-                    unloadNode(top->children[i]);
-                }
-            }
-
-            top = nullptr;
-        }
-    };
-};
-
-extern std::unordered_map<uint16_t, song> mapLibrary;
+void libraryScan(const std::string path);
