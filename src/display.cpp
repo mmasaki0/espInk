@@ -62,7 +62,7 @@ void taskDisplay(void *param) {
                 display.firstPage();
                 do {
                     display.fillScreen(colorFront);
-                    display.drawXBitmap(40, 200, bitmap_player, 160, 64, colorBack);
+                    display.drawXBitmap(40, 200, bitmap::bitmap_player, 160, 64, colorBack);
                     display.drawRect(std::get<0>(playerSelectPos[playerSelectIndex]), std::get<1>(playerSelectPos[playerSelectIndex]), 32, 32, colorBack);
                 } while (display.nextPage());
                 
@@ -121,6 +121,13 @@ void setupDisplay() {
     display.setTextColor(colorFront);
     display.setFont(&FreeSerif9pt7b);
     display.setTextWrap(false);
+
+    display.firstPage();
+    display.setPartialWindow(0, 50, 240, 240);
+    do {
+        display.drawXBitmap(0, 50, bitmap::arcane, 240, 240, GxEPD_BLACK);
+    } while (display.nextPage());
+    
 }
 
 
