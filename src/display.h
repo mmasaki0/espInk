@@ -3,7 +3,7 @@
 #include <string>
 
 void setupDisplay();
-void displayWriteText(std::string text);
+void displayWriteText(std::string text, int x, int y);
 
 extern QueueHandle_t queueDisplay;
 

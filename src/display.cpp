@@ -132,22 +132,21 @@ void setupDisplay() {
 
 
 
-void displayWriteText(std::string text) {
+void displayWriteText(std::string text, int x, int y) {
     int16_t x1, y1;
     uint16_t w, h;
 
     
 
-    display.getTextBounds(text.c_str(), 100, 100, &x1, &y1, &w, &h);
+    display.getTextBounds(text.c_str(), x, y, &x1, &y1, &w, &h);
 
     display.setPartialWindow(x1, y1, w, h);
 
     display.firstPage();
-        do {
-        display.setCursor(100, 100);
-        display.fillScreen(colorBack);
-        display.print(text.c_str());
-        } while (display.nextPage()); // Automatically renders and flushes over SPI
-    display.hibernate();
+    do {
+    display.setCursor(x, y);
+    display.fillScreen(colorBack);
+    display.print(text.c_str());
+    } while (display.nextPage()); // Automatically renders and flushes over SPI
 }
 
