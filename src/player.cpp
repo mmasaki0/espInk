@@ -43,8 +43,8 @@ static QueueHandle_t queueAudioControl;
 
 int32_t a2dpAudioCallback(uint8_t* data, int32_t size) {
     bool p;
-    if(!playing || streamProcessed.available() == 0) {
-        //send empty bytes into a2dp if paused
+    if(streamProcessed.available() == 0) {
+        //send empty bytes into a2dp if nothing to play
         memset(data, 0, 512);
         // Serial.println(streamProcessed.available());
         return(512);
@@ -84,8 +84,8 @@ void avrcCallback(uint8_t id, bool isReleased) {
                 break;
             }   
             case ESP_AVRC_PT_CMD_FORWARD: {
-                Serial.println("FORWARD");
-                char qmsg[64] = "FORWARD";
+                Serial.println("SEEK:+10");
+                char qmsg[64] = "SEEK:+10";
                 xQueueSend(queueAudioControl, qmsg, 0);
 
                 //temp code to press currently selected
@@ -166,11 +166,6 @@ void changeCurrentFile(const std::string path) {
 
             currentFile = SD.open(path.c_str());
 
-            //clear buffers
-            uint8_t dump[512];
-            while(streamProcessed.available() > 0) {
-                streamProcessed.readBytes(dump, sizeof(dump));
-            }
             Serial.println(streamProcessed.available());
         } else {
             Serial.println("path not found");
@@ -186,11 +181,6 @@ void changeCurrentFile(const std::string path) {
 
 void seekCurrentFile(const uint32_t pos) {
     if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
-        Serial.println(bufferProcessed.available());
-        bufferProcessed.reset();
-        Serial.println(bufferProcessed.available());
-        decoder.flush();
-        bufferProcessed.reset();
         currentFile.seek(pos);
 
         xSemaphoreGive(mutexCurrentFile);
@@ -277,10 +267,6 @@ void taskAudio(void *param) {
 
     while(1) {
         if(playing) {
-            // if(xSemaphoreTake(mutexCurrentFile, 0) == pdTRUE) {
-            //     copySongToPipeline.copy();
-            //     xSemaphoreGive(mutexCurrentFile);
-            // }
             int bytesRead = 0;
 
             if(xSemaphoreTake(mutexCurrentFile, 0) == pdTRUE) {
@@ -289,17 +275,13 @@ void taskAudio(void *param) {
             }
 
             if(bytesRead > 0) {
-                
-                pipeline.write(buffer, bytesRead);
+                pipeline.write(buffer, bytesRead);    
             }
-
+        } else {
+            pipeline.writeSilence(512);
         }
-        // if(playing) {
-        //     if(xSemaphoreTake(mutexCurrentFile, 0) == pdTRUE) {
-        //         copySongToPipeline.copy();
-        //         xSemaphoreGive(mutexCurrentFile);
-        //     }    
-        // }
+
+
         vTaskDelay(pdTICKS_TO_MS(1));
     }
     vTaskDelete(NULL);
