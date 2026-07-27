@@ -40,7 +40,7 @@ void setup() {
 
   
   setupA2DP();
-  displayWriteText("bluetooth connected");
+  displayWriteText("bluetooth connected", 10, 10);
   
   vTaskDelay(1000 / portTICK_PERIOD_MS);
 
