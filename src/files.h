@@ -42,7 +42,7 @@ struct ID3v2Tag {
 struct song {
     std::string path;
     ID3v1Tag id3v1tag;
-    ID3v2Tag id3v21tag;
+    ID3v2Tag id3v2tag;
     
     song() {}
     song(const std::string p) {
@@ -52,36 +52,55 @@ struct song {
     bool loadID3v1() {
         File file = SD.open(path.c_str());
 
-        if(file.size() < 128) {
-            id3v1tag.exists = false;
-            return false;
+        if(file.size() >= 128) {
+            file.seek(file.size() - 128);
+            std::vector<char> buffer;
+
+            buffer.resize(128);
+            file.readBytes(buffer.data(), 128);
+
+            if(memcmp(buffer.data(), "TAG", 3) == 0) {
+                // has ID3v1 tag
+                id3v1tag.exists = true;
+
+                id3v1tag.title = misc::trim_copy(std::string(buffer.data() + 3, 30));
+                id3v1tag.artist = misc::trim_copy(std::string(buffer.data() + 33, 30));
+                id3v1tag.album = misc::trim_copy(std::string(buffer.data() + 63, 30));
+                id3v1tag.year = misc::trim_copy(std::string(buffer.data() + 93, 4));
+
+                file.close();
+                return true;
+            }
+
         }
-
-        file.seek(file.size() - 128);
-        std::vector<char> buffer(129);
-        size_t bytesRead = 0;
-        
-
-        //check for TAG tag
-        bytesRead = file.readBytes(buffer.data(), 128);
-
-        if(bytesRead != 128 || memcmp(buffer.data(), "TAG", 3) != 0) {
-            id3v1tag.exists = false;
-            return false;
-        }
-
-        id3v1tag.exists = true;
-
-        std::string bufferString(buffer.data(), 128);
-
-        id3v1tag.title = misc::trim_copy(bufferString.substr(3, 30));
-        id3v1tag.artist = misc::trim_copy(bufferString.substr(33, 30));
-        id3v1tag.album = misc::trim_copy(bufferString.substr(63, 30));
-        id3v1tag.year = misc::trim_copy(bufferString.substr(93, 4));
 
         file.close();
+        id3v1tag.exists = false;
+        return false;
+    }
 
-        return true;
+    bool loadID3v2() {
+        File file = SD.open(path.c_str());
+
+        if(file.size() > 10) {
+            std::vector<char> buffer;
+            buffer.resize(10);
+            file.readBytes(buffer.data(), 10);
+
+            if(memcmp(buffer.data(), "ID3", 3) == 0) {
+                //has ID3v2 tag
+                id3v2tag.exists = true;
+
+                int tagSize = 0;
+
+
+            }
+        }
+
+
+        file.close();
+            id3v2tag.exists = false;
+            return false;
     }
 };
 
