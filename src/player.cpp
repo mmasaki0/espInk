@@ -21,8 +21,6 @@ uint16_t bufferProcessedSize = 1024 * 16;
 BufferRTOS<uint8_t> bufferProcessed(bufferProcessedSize);
 QueueStream<uint8_t> streamProcessed(bufferProcessed);
 
-File currentFile;
-
 std::deque<uint16_t> future; //queue for play next
 std::queue<uint16_t> history;
 
@@ -43,7 +41,7 @@ static TaskHandle_t taskHandleAudioControl = NULL;
 
 static QueueHandle_t queueAudioControl;
 
-SemaphoreHandle_t mutexCurrentFile;
+
 
 int32_t a2dpAudioCallback(uint8_t* data, int32_t size) {
     bool p;
@@ -160,7 +158,13 @@ void changeCurrentFile(const std::string path) {
     if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
         if(SD.exists(path.c_str())) {
             currentFile.close();
+
+            currentSong = song(path);
+            currentSong.loadID3v1();
+
             currentFile = SD.open(path.c_str());
+
+            
         } else {
             Serial.println("path not found");
         }
@@ -266,7 +270,7 @@ void preSetup() {
     mutexCurrentFile = xSemaphoreCreateMutex();
     
     xTaskCreatePinnedToCore(taskAudio, "taskAudio", 1024*3, NULL, 15, &taskHandleAudio, 1);
-    xTaskCreatePinnedToCore(taskAudioControl, "taskAudioControl", 1024*3, NULL, 10, &taskHandleAudioControl, 1);
+    xTaskCreatePinnedToCore(taskAudioControl, "taskAudioControl", 1024*4, NULL, 10, &taskHandleAudioControl, 1);
 }
 
 void setupPipeline() {

@@ -6,7 +6,12 @@
 
 #include "files.h"
 
+SemaphoreHandle_t mutexCurrentFile;
+
 std::vector<std::string> libraryPaths;
+
+File currentFile;
+song currentSong;
 
 uint16_t currentId = 0;
 
