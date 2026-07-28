@@ -29,6 +29,7 @@ void setup() {
   vTaskDelay(1000 / portTICK_PERIOD_MS);
 
   setupDisplay();
+  preSetup();
   setupPipeline();
 
   if(!SD.begin(27)) {
@@ -47,6 +48,12 @@ void setup() {
   futureAdd(2, "front");
   futureAdd(3, "front");
   futureAdd(5, "front");
+  futureAdd(2, "front");
+  futureAdd(3, "front");
+  futureAdd(5, "front");
+  futureAdd(2, "front");
+  futureAdd(3, "front");
+  futureAdd(5, "front");
 }
 
 char qmsg[64] = "PLAYER:";
@@ -61,5 +68,8 @@ void loop() {
   // vTaskDelay(10000);
   //   strcpy(qmsg, "MENU:");
   // xQueueSend(queueDisplay, qmsg, 0);
-  // vTaskDelay(10000);
+  // Serial.println(measure.bytesPerSecond());
+  // vTaskDelay(1000); 
+  // Serial.println(de.available());
+  // vTaskDelay(50);
 }

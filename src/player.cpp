@@ -22,16 +22,21 @@ std::queue<uint16_t> history;
 
 std::atomic_int playing{0};
 
-BufferRTOS<uint8_t> bufferProcessed(1024 * 16);
+uint8_t buffer[1024];
+
+const int bufferProcessedSize = 1024 * 16;
+BufferRTOS<uint8_t> bufferProcessed(bufferProcessedSize);
 QueueStream<uint8_t> streamProcessed(bufferProcessed);
-ResampleStreamT<ParabolicInterpolator> resampler;
+MeasuringStream measure;
+ResampleStreamT<LinearInterpolator> resampler;
 MP3DecoderHelix helix;
 EncodedAudioStream decoder(&helix);
 VolumeStream volume;
-MeasuringStream measure;
+FadeStream fade;
+
 // FadeStream fade;
 Pipeline pipeline;
-// StreamCopy copySongToPipeline(pipeline, currentFile, 1024);
+StreamCopy copySongToPipeline(pipeline, currentFile, 1024);
 BluetoothA2DPSource a2dp_source;
 
 static TaskHandle_t taskHandleAudio = NULL;
@@ -42,32 +47,30 @@ static QueueHandle_t queueAudioControl;
 
 
 int32_t a2dpAudioCallback(uint8_t* data, int32_t size) {
-    bool p;
     if(streamProcessed.available() == 0) {
-        //send empty bytes into a2dp if nothing to play
-        memset(data, 0, 512);
-        // Serial.println(streamProcessed.available());
-        return(512);
+        // return nothing to prevent blocking
+        memset(data, 0, size);
+        return size;
     }
+
     int32_t result = streamProcessed.readBytes((uint8_t*)data, size);
     if(result < size) {
         memset(data + result, 0, size-result);
     }
-    // Serial.println(streamProcessed.available());
-    // vTaskDelay(pdTICKS_TO_MS(1));
-        // Serial.print(result); Serial.print(":"); Serial.print(size); Serial.print(":"); Serial.print(streamProcessed.available());  Serial.println(" ");
+
+    // do not put delay here
     return(size);
 }
 
 void avrcCallback(uint8_t id, bool isReleased) {
     if(isReleased) {
-        Serial.println(id);
+        // Serial.println(id);
         switch (id) {
             case ESP_AVRC_PT_CMD_PAUSE: {
                 
                 char qmsg[64] = "PAUSE";
                 // Serial.println(qmsg);
-                Serial.println(xQueueSend(queueAudioControl, qmsg, 0));
+                xQueueSend(queueAudioControl, qmsg, 0);
                 //temp code to iterate through select position
                 // if(xSemaphoreTake(mutexSelect, portMAX_DELAY) == pdTRUE) {
                 //     if(playerSelectIndex == 7) {
@@ -84,8 +87,8 @@ void avrcCallback(uint8_t id, bool isReleased) {
                 break;
             }   
             case ESP_AVRC_PT_CMD_FORWARD: {
-                Serial.println("SEEK:+10");
-                char qmsg[64] = "SEEK:+10";
+                // Serial.println("FORWARD");
+                char qmsg[64] = "FORWARD";
                 xQueueSend(queueAudioControl, qmsg, 0);
 
                 //temp code to press currently selected
@@ -155,28 +158,41 @@ void avrcCallback(uint8_t id, bool isReleased) {
 void changeCurrentFile(const std::string path) {
     if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
         if(SD.exists(path.c_str())) {
+            Serial.println("skippping");
+
             currentFile.close();
 
-            // decoder.end();
-            // decoder.begin();
-            // bufferProcessed.reset();
+            // NEED TO SET VOLUME TO 0 then back to 1 after because garbage leaks through 
+            volume.setVolume(0);
+            pipeline.end();
+            bufferProcessed.reset();
+
 
             currentSong = song(path);
-            currentSong.loadID3v1();
-
+            
+            // Serial.println(currentSong.id3v2.exists); Serial.println(currentSong.id3v2.size);
+            
+            setupPipeline();
             currentFile = SD.open(path.c_str());
-
-            Serial.println(streamProcessed.available());
+            xSemaphoreGive(mutexCurrentFile);
+            // vTaskDelay(1000);
+            volume.setVolume(1);
+            
+            // bufferProcessed.clear();
+            // fade.setFadeInActive(true);
+            // playing = wasPlaying;
         } else {
             Serial.println("path not found");
         }
-        xSemaphoreGive(mutexCurrentFile);
-
+        
+        Serial.println("done skipping");
+        
         // displayWriteText(currentSong.id3v1tag.title, 0, 300);
         // displayWriteText(currentSong.id3v1tag.artist, 0, 316);
         // displayWriteText(currentSong.id3v1tag.album, 0, 332);
         // displayWriteText(currentSong.id3v1tag.year, 0, 348);
     }
+    
 }
 
 void seekCurrentFile(const uint32_t pos) {
@@ -197,14 +213,20 @@ uint32_t positionCurrentFile() {
 }
 
 void taskAudioControl(void *param) {
+    TickType_t lastBitrateTick = 0;
+    int meanBitrate = 0;
     while(1) {
         // recieved control message in queue
         char msg[64];
         if(xQueueReceive(queueAudioControl, (void*)&msg, 0) == pdTRUE) {
-            Serial.println(msg);
             if(strcmp(msg, "PAUSE") == 0) {
+                if(playing) {
+                    fade.setFadeOutActive(true);
+                    // vTaskDelay(1000);
+                } else {
+                    fade.setFadeInActive(true);
+                }
                 playing.fetch_xor(1);
-                
             }
             else if(strcmp(msg, "FORWARD") == 0) {
                 if(!future.empty()) {
@@ -231,7 +253,8 @@ void taskAudioControl(void *param) {
                 if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
                     uint32_t size = currentFile.size();
                     xSemaphoreGive(mutexCurrentFile);
-                    int64_t seekByte = positionCurrentFile() + atoi(seekTimeChar) * measure.bytesPerSecond();
+                    // int64_t seekByte = positionCurrentFile() + atoi(seekTimeChar) * measure.bytesPerSecond();
+                    int64_t seekByte = positionCurrentFile() + atoi(seekTimeChar) * meanBitrate;
 
                     if(seekByte < 0) {
                         seekByte = 0;
@@ -244,8 +267,9 @@ void taskAudioControl(void *param) {
                 }
             }
         }
-        //check if file is done reading then skip to next song
+        
         if(playing) {
+            // check if file is done reading then skip to next song
             if(xSemaphoreTake(mutexCurrentFile, 0) == pdTRUE) {
                 int available = currentFile.available();
                 xSemaphoreGive(mutexCurrentFile);
@@ -256,33 +280,43 @@ void taskAudioControl(void *param) {
                 }
                 
             }
+            
+            // calculate mean bitrate used for seeking
+            // if((xTaskGetTickCount() - lastBitrateTick) > 500) {
+            //     lastBitrateTick = xTaskGetTickCount();
+            //     meanBitrate = (0.5 * meanBitrate) + (0.5 * measure.bytesPerSecond());
+            //     // Serial.print("m:"); Serial.println(meanBitrate);
+
+            //     Serial.println(decoder.available());
+            // }
+            
         }
-        vTaskDelay(pdTICKS_TO_MS(10));
+
+        if((xTaskGetTickCount() - lastBitrateTick) > 500) {
+            //test serial output
+            // Serial.println(pipeline.flush());
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
     vTaskDelete(NULL);
 }
 
 void taskAudio(void *param) {
-    uint8_t buffer[1024];
+    
 
     while(1) {
         if(playing) {
-            int bytesRead = 0;
-
-            if(xSemaphoreTake(mutexCurrentFile, 0) == pdTRUE) {
-                bytesRead = currentFile.readBytes((char*)buffer, 1024);
+        // if(playing) {
+            if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
+                copySongToPipeline.copy();
                 xSemaphoreGive(mutexCurrentFile);
+            } else {
+                //Serial.println("no mutex");
             }
-
-            if(bytesRead > 0) {
-                pipeline.write(buffer, bytesRead);    
-            }
-        } else {
-            pipeline.writeSilence(512);
         }
 
-
-        vTaskDelay(pdTICKS_TO_MS(1));
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
     vTaskDelete(NULL);
 }
@@ -292,27 +326,26 @@ void preSetup() {
     queueAudioControl = xQueueCreate(4, 64);
     mutexCurrentFile = xSemaphoreCreateMutex();
     
-    xTaskCreatePinnedToCore(taskAudio, "taskAudio", 1024*7, NULL, 15, &taskHandleAudio, 1);
-    xTaskCreatePinnedToCore(taskAudioControl, "taskAudioControl", 1024*4, NULL, 10, &taskHandleAudioControl, 1);
+    xTaskCreatePinnedToCore(taskAudio, "taskAudio", 1024*8, NULL, 15, &taskHandleAudio, 1);
+    xTaskCreatePinnedToCore(taskAudioControl, "taskAudioControl", 1024*5, NULL, 10, &taskHandleAudioControl, 1);
 }
 
 void setupPipeline() {
-    preSetup();
-
     streamProcessed.begin();
 
     auto rcfg = resampler.defaultConfig();
-    rcfg.sample_rate = 48000;
     rcfg.to_sample_rate = 44100;
     resampler.begin(rcfg);
+    fade.setAudioInfo(rcfg);
 
-    // fade.setAudioInfo(AudioInfo(44100, 2, 16));
+    // volume.setVolume(1);
 
     pipeline.add(measure);
     pipeline.add(decoder);
     pipeline.add(resampler);
-    // pipeline.add(fade);
-    // pipeline.add(volume);
+    pipeline.add(fade);
+    pipeline.add(volume);
+    
     pipeline.setOutput(streamProcessed);
     pipeline.begin();
 }
