@@ -35,8 +35,7 @@ void setup() {
     return;
   }
 
-  libraryScan("/lib");
-
+  setupLibrary();
   
   setupA2DP();
   displayWriteText("bluetooth connected", 10, 10);

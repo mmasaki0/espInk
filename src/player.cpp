@@ -151,9 +151,9 @@ void avrcCallback(uint8_t id, bool isReleased) {
 }
 
 // takes new path, reopen if mutex is available
-void changeCurrentFile(const std::string path) {
+void changeCurrentFile(const char* path) {
     if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
-        if(SD.exists(path.c_str())) {
+        if(SD.exists(path)) {
             currentFile.close();
 
             // NEED TO SET VOLUME TO 0 then back to 1 after because garbage leaks through 
@@ -165,7 +165,7 @@ void changeCurrentFile(const std::string path) {
             // Serial.println(currentSong.id3v2.exists); Serial.println(currentSong.id3v2.size);
             
             setupPipeline();
-            currentFile = SD.open(path.c_str());
+            currentFile = SD.open(path);
             xSemaphoreGive(mutexCurrentFile);
             volume.setVolume(1);
         } else {
@@ -215,7 +215,7 @@ void taskAudioControl(void *param) {
             }
             else if(strcmp(msg, "FORWARD") == 0) {
                 if(!future.empty()) {
-                    changeCurrentFile(libraryPaths.at(future.front()));
+                    changeCurrentFile(libraryPaths.at(future.front()).data());
                     future.pop_front();
                 } else {
                     playing = 0;
@@ -224,7 +224,7 @@ void taskAudioControl(void *param) {
             }
             else if(strcmp(msg, "BACKWARD") == 0) {
                 if(!history.empty()) {
-                    changeCurrentFile(libraryPaths.at(history.front()));
+                    changeCurrentFile(libraryPaths.at(history.front()).data());
                     history.pop();
                 } else {
                     seekCurrentFile(0);

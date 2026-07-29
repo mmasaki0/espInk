@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+
 #include <SD.h>
 
 #include "misc.h"
@@ -17,8 +18,8 @@ struct AllocatorSTLPSRAM {
     AllocatorSTLPSRAM(const AllocatorSTLPSRAM<U>&) noexcept {}
 
     T* allocate(size_t n) {
-        if(n > numeric_limits<size_t>::max / sizeof(T)) {
-            throw bad_array_new_length();
+        if(n > std::numeric_limits<size_t>::max() / sizeof(T)) {
+            throw std::bad_array_new_length();
         }
 
         if(n * sizeof(T) == 0) {
@@ -27,7 +28,7 @@ struct AllocatorSTLPSRAM {
         
         void* ptr = heap_caps_malloc(n * sizeof(T), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
         if(!ptr) {
-            throw bad_alloc();
+            throw std::bad_alloc();
         }
 
         return static_cast<T*>(ptr);
@@ -40,7 +41,7 @@ struct AllocatorSTLPSRAM {
 template<typename T, typename U> bool operator==(const AllocatorSTLPSRAM<T>&, const AllocatorSTLPSRAM<U>&) {return true;}
 template<typename T, typename U> bool operator!=(const AllocatorSTLPSRAM<T>&, const AllocatorSTLPSRAM<U>&) {return false;}
 
-extern std::vector<std::string> libraryPaths;
+extern std::vector<std::array<char, 256>, AllocatorSTLPSRAM<std::array<char, 256>>> libraryPaths;
 extern SemaphoreHandle_t mutexCurrentFile;
 
 struct ID3v1Tag {
@@ -141,4 +142,4 @@ struct song {
 extern File currentFile;
 extern song currentSong;
 
-void libraryScan(const std::string path);
+void setupLibrary();

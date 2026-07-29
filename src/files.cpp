@@ -1,5 +1,6 @@
 #include <vector>
 #include <string>
+#include <array>
 #include <algorithm>
 
 #include <SD.h>
@@ -8,32 +9,38 @@
 
 SemaphoreHandle_t mutexCurrentFile;
 
-std::vector<std::string> libraryPaths;
+std::vector<std::array<char, 256>, AllocatorSTLPSRAM<std::array<char, 256>>> libraryPaths;
 
 File currentFile;
 song currentSong;
 
-// rewrite this in the future
-void libraryScan(const std::string path) {
-    File dir = SD.open(path.c_str());
+// recursive directory scan
+void libraryScan(const char* path, int depth = 0) {
+    File dir = SD.open(path);
     File next = dir.openNextFile();
     while(next) {
-        if(next.isDirectory()) {
-            libraryScan(next.path());
-        } else {
-            char extension[4];
-            strncpy(extension, next.name() + strlen(next.name()) - 3, 3);
-            extension[3] = '\0';
-            if(strcmp(extension, "mp3") == 0) {
-                Serial.println(next.path());
-                libraryPaths.push_back(next.path());
+        if(strlen(next.path()) < 256) {
+            if(next.isDirectory()) {
+                if(depth < 3) {libraryScan(next.path(), depth + 1);}
+            } else {
+                const char* name = next.name();
+                size_t len = strlen(name);
+                if(len >= 4 && strcasecmp(name + len - 4, ".mp3") == 0) {
+                    std::array<char, 256> entry{};
+                    strcpy(entry.data(), next.path());
+                    libraryPaths.push_back(entry);
+                    Serial.println(entry.data());
+                }
             }
         }
         next.close();
         next = dir.openNextFile();
     }
-    next.close();
     dir.close();
-    
+}
+
+void setupLibrary() {
+    libraryPaths.clear();
+    libraryScan("/lib");
     std::sort(libraryPaths.begin(), libraryPaths.end());
 }
