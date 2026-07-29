@@ -45,31 +45,19 @@ void setup() {
   
   vTaskDelay(1000 / portTICK_PERIOD_MS);
 
-  futureAdd(2, "front");
-  futureAdd(3, "front");
-  futureAdd(5, "front");
-  futureAdd(2, "front");
-  futureAdd(3, "front");
-  futureAdd(5, "front");
-  futureAdd(2, "front");
-  futureAdd(3, "front");
-  futureAdd(5, "front");
+  futureAdd(15, "front");
+  futureAdd(16, "front");
+  futureAdd(17, "front");
+  futureAdd(18, "front");
+  futureAdd(19, "front");
+  futureAdd(20, "front");
+  futureAdd(21, "front");
+  futureAdd(22, "front");
+  futureAdd(23, "front");
 }
 
 char qmsg[64] = "PLAYER:";
 
 void loop() {
-  // Serial.println(streamProcessed.available());
-  // strcpy(qmsg, "PLAYER:");
-  // xQueueSend(queueDisplay, qmsg, 0);
-  // vTaskDelay(10000);
-  // strcpy(qmsg, "MENU");
-  // xQueueSend(queueDisplay, qmsg, 0);
-  // vTaskDelay(10000);
-  //   strcpy(qmsg, "MENU:");
-  // xQueueSend(queueDisplay, qmsg, 0);
-  // Serial.println(measure.bytesPerSecond());
-  // vTaskDelay(1000); 
-  // Serial.println(de.available());
-  // vTaskDelay(50);
+
 }
