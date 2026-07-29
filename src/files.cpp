@@ -13,8 +13,6 @@ std::vector<std::string> libraryPaths;
 File currentFile;
 song currentSong;
 
-uint16_t currentId = 0;
-
 // rewrite this in the future
 void libraryScan(const std::string path) {
     File dir = SD.open(path.c_str());

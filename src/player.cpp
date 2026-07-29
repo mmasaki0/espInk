@@ -32,7 +32,7 @@ EncodedAudioStream decoder(&helix);
 ResampleStreamT<LinearInterpolator> resampler;
 FadeStream fade;
 VolumeStream volume;
-StreamCopy copySongToPipeline(pipeline, currentFile, 1024);
+StreamCopy copySongToPipeline(pipeline, currentFile);
 BluetoothA2DPSource a2dp_source;
 
 static TaskHandle_t taskHandleAudio = NULL;
@@ -160,7 +160,7 @@ void changeCurrentFile(const std::string path) {
             volume.setVolume(0);
             pipeline.end();
             bufferProcessed.reset();
-            currentSong = song(path);
+            // currentSong = song(path);
             
             // Serial.println(currentSong.id3v2.exists); Serial.println(currentSong.id3v2.size);
             
@@ -264,6 +264,10 @@ void taskAudioControl(void *param) {
                     Serial.println("done");
                 }
                 
+            }
+
+            if(bufferProcessed.levelPercent() < 10) {
+                Serial.println("buffer low");
             }
             
             // calculate mean bitrate used for seeking

@@ -15,8 +15,6 @@
 #include "display.h"
 #include "files.h"
 
-extern File currentFile;
-
 #define FORMAT_LITTLEFS_IF_FAILED true
 
 // WebServer server(80);

@@ -7,6 +7,39 @@
 
 #include "misc.h"
 
+template <typename T>
+struct AllocatorSTLPSRAM {
+    using value_type = T;
+
+    AllocatorSTLPSRAM() noexcept = default;
+
+    template <typename U>
+    AllocatorSTLPSRAM(const AllocatorSTLPSRAM<U>&) noexcept {}
+
+    T* allocate(size_t n) {
+        if(n > numeric_limits<size_t>::max / sizeof(T)) {
+            throw bad_array_new_length();
+        }
+
+        if(n * sizeof(T) == 0) {
+            return nullptr;
+        }
+        
+        void* ptr = heap_caps_malloc(n * sizeof(T), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        if(!ptr) {
+            throw bad_alloc();
+        }
+
+        return static_cast<T*>(ptr);
+    }
+
+    void deallocate(T* p, size_t) noexcept {
+        heap_caps_free(p);
+    }   
+};
+template<typename T, typename U> bool operator==(const AllocatorSTLPSRAM<T>&, const AllocatorSTLPSRAM<U>&) {return true;}
+template<typename T, typename U> bool operator!=(const AllocatorSTLPSRAM<T>&, const AllocatorSTLPSRAM<U>&) {return false;}
+
 extern std::vector<std::string> libraryPaths;
 extern SemaphoreHandle_t mutexCurrentFile;
 
