@@ -32,7 +32,7 @@ EncodedAudioStream decoder(&helix);
 ResampleStreamT<LinearInterpolator> resampler;
 FadeStream fade;
 VolumeStream volume;
-StreamCopy copySongToPipeline(pipeline, currentFile);
+StreamCopy copySongToPipeline(pipeline, currentFile, 1024*4);
 BluetoothA2DPSource a2dp_source;
 
 static TaskHandle_t taskHandleAudio = NULL;
