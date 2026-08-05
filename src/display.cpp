@@ -11,10 +11,10 @@
 
 #include "bitmaps.h"
 
-#define EPD_BUSY 22
-#define EPD_RST 20
-#define EPD_DC 32
-#define EPD_CS 33
+#define EPD_BUSY 37
+#define EPD_RST 27
+#define EPD_DC 33
+#define EPD_CS 32
 
 static TaskHandle_t taskHandleDisplay = NULL;
 QueueHandle_t queueDisplay;

@@ -12,7 +12,7 @@ SemaphoreHandle_t mutexCurrentFile;
 std::vector<std::array<char, 256>, AllocatorSTLPSRAM<std::array<char, 256>>> libraryPaths;
 
 File currentFile;
-song currentSong;
+// song currentSong;
 
 // recursive directory scan
 void libraryScan(const char* path, int depth = 0) {

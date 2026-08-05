@@ -45,7 +45,7 @@ extern std::vector<std::array<char, 256>, AllocatorSTLPSRAM<std::array<char, 256
 extern SemaphoreHandle_t mutexCurrentFile;
 
 struct ID3v1Tag {
-    bool exists;
+    bool exists = false;;
 
     std::string title;
     std::string artist;
@@ -54,13 +54,15 @@ struct ID3v1Tag {
 };
 
 struct ID3v2Tag {
-    bool exists;
+    bool exists = false;
 
-    char identifier[3];
-    char major[1];
-    char minor[1];
-    char flags[1];
-    char size[4];
+    // char identifier[3];
+    // char major[1];
+    // char minor[1];
+    // char flags[1];
+    // char size[4];
+
+    int size;
 
     std::string TIT2; // title
     std::string TPE1; // artists
@@ -73,17 +75,28 @@ struct ID3v2Tag {
     std::vector<char> APIC; // album cover art
 };
 
+struct VBR {
+    bool exists = false;
+    uint32_t frames = 0;
+    uint32_t bytes = 0;
+    uint8_t toc[100];
+};
+
 struct song {
     std::string path;
-    ID3v1Tag id3v1tag;
-    ID3v2Tag id3v2tag;
+    ID3v1Tag id3v1;
+    ID3v2Tag id3v2;
+    VBR vbr;
     
     song() {}
     song(const std::string p) {
         path = p;
+        loadID3v1();
+        loadID3v2();
+        loadVBR();
     };
 
-    bool loadID3v1() {
+    void loadID3v1() {
         File file = SD.open(path.c_str());
 
         if(file.size() >= 128) {
@@ -95,48 +108,61 @@ struct song {
 
             if(memcmp(buffer.data(), "TAG", 3) == 0) {
                 // has ID3v1 tag
-                id3v1tag.exists = true;
+                id3v1.exists = true;
 
-                id3v1tag.title = misc::trim_copy(std::string(buffer.data() + 3, 30));
-                id3v1tag.artist = misc::trim_copy(std::string(buffer.data() + 33, 30));
-                id3v1tag.album = misc::trim_copy(std::string(buffer.data() + 63, 30));
-                id3v1tag.year = misc::trim_copy(std::string(buffer.data() + 93, 4));
+                id3v1.title = misc::trim_copy(std::string(buffer.data() + 3, 30));
+                id3v1.artist = misc::trim_copy(std::string(buffer.data() + 33, 30));
+                id3v1.album = misc::trim_copy(std::string(buffer.data() + 63, 30));
+                id3v1.year = misc::trim_copy(std::string(buffer.data() + 93, 4));
 
                 file.close();
-                return true;
             }
-
         }
 
         file.close();
-        id3v1tag.exists = false;
-        return false;
+        id3v1.exists = false;
     }
 
-    bool loadID3v2() {
+    void loadID3v2() {
         File file = SD.open(path.c_str());
 
         if(file.size() > 10) {
-            std::vector<char> buffer;
-            buffer.resize(10);
+            std::vector<char> buffer(10);
+
             file.readBytes(buffer.data(), 10);
 
             if(memcmp(buffer.data(), "ID3", 3) == 0) {
                 //has ID3v2 tag
-                id3v2tag.exists = true;
-
-                int tagSize = 0;
-
+                id3v2.exists = true;
+                id3v2.size = (buffer.at(6) << 21) | (buffer.at(7) << 14) | (buffer.at(8) << 7) | buffer.at(9);
 
             }
         }
 
 
         file.close();
-            id3v2tag.exists = false;
-            return false;
+            id3v2.exists = false;
+    }
+
+    bool loadAPIC() {
+        return false;
+    }
+
+    void loadVBR() {
+        File file = SD.open(path.c_str());
+
+        // if(id3v2.exists) {
+        //     file.seek(10 + id3v2.sizeCalculated);
+        // } else {
+        //     file.seek(0);
+        // }
+
+
+        file.close();
+        vbr.exists = false;
     }
 };
+
 
 
 extern File currentFile;

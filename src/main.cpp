@@ -22,7 +22,7 @@
 
 void setup() {
   Serial.begin(115200);
-  SPI.begin(5, 21, 19, 27);
+  SPI.begin(5, 21, 19, 4);
   
   vTaskDelay(1000 / portTICK_PERIOD_MS);
 
@@ -30,7 +30,7 @@ void setup() {
   preSetup();
   setupPipeline();
 
-  if(!SD.begin(27)) {
+  if(!SD.begin(4)) {
     Serial.println("Error during SD.");
     return;
   }
