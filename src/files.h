@@ -41,11 +41,11 @@ struct AllocatorSTLPSRAM {
 template<typename T, typename U> bool operator==(const AllocatorSTLPSRAM<T>&, const AllocatorSTLPSRAM<U>&) {return true;}
 template<typename T, typename U> bool operator!=(const AllocatorSTLPSRAM<T>&, const AllocatorSTLPSRAM<U>&) {return false;}
 
-extern std::vector<std::array<char, 256>, AllocatorSTLPSRAM<std::array<char, 256>>> libraryPaths;
+extern std::vector<std::string, AllocatorSTLPSRAM<std::string>> libraryPaths;
 extern SemaphoreHandle_t mutexCurrentFile;
 
 struct ID3v1Tag {
-    bool exists = false;;
+    bool exists = false;
 
     std::string title;
     std::string artist;
@@ -136,6 +136,22 @@ struct song {
                 id3v2.exists = true;
                 id3v2.size = (buffer.at(6) << 21) | (buffer.at(7) << 14) | (buffer.at(8) << 7) | buffer.at(9);
 
+                for(int i = 11; i < id3v2.size; i++) {
+                    buffer.clear();
+
+                    file.readBytes(buffer.data(), 10);
+                    Serial.println(buffer.at(4));
+                    // int frameSize = (buffer.at(4) << 21) | (buffer.at(5) << 14) | (buffer.at(6) << 7) | buffer.at(7);
+                    // Serial.println(frameSize);
+                //     // char tag[5];
+                //     // memcpy(tag, buffer.data(), 4);
+                //     // tag[4] = '\0';
+                //     // Serial.println(tag);
+
+                //     i += frameSize + 10;
+                //     file.seek(file.position() + frameSize + 10);
+                }
+
             }
         }
 
@@ -167,5 +183,9 @@ struct song {
 
 extern File currentFile;
 extern song currentSong;
+
+extern TaskHandle_t taskHandleFileData;
+
+void taskFileData(void *param);
 
 void setupLibrary();

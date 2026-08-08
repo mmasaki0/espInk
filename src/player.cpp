@@ -38,6 +38,8 @@ BluetoothA2DPSource a2dp_source;
 static TaskHandle_t taskHandleAudio = NULL;
 static TaskHandle_t taskHandleAudioControl = NULL;
 
+
+
 static QueueHandle_t queueAudioControl;
 
 
@@ -160,8 +162,10 @@ void changeCurrentFile(const char* path) {
             volume.setVolume(0);
             pipeline.end();
             bufferProcessed.reset();
+
+
+            xTaskCreatePinnedToCore(taskFileData, "taskFileData", 1024*4, &path, 4, &taskHandleFileData, 1);
             // currentSong = song(path);
-            
             // Serial.println(currentSong.id3v2.exists); Serial.println(currentSong.id3v2.size);
             
             setupPipeline();
@@ -307,6 +311,7 @@ void preSetup() {
     
     xTaskCreatePinnedToCore(taskAudio, "taskAudio", 1024*8, NULL, 15, &taskHandleAudio, 1);
     xTaskCreatePinnedToCore(taskAudioControl, "taskAudioControl", 1024*5, NULL, 10, &taskHandleAudioControl, 1);
+
 }
 
 void setupPipeline() {
