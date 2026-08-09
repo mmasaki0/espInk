@@ -24,7 +24,7 @@ void setup() {
   Serial.begin(115200);
   SPI.begin(5, 21, 19, 4);
   
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
+  vTaskDelay(2000 / portTICK_PERIOD_MS);
 
   setupDisplay();
   preSetup();
@@ -56,5 +56,6 @@ void setup() {
 char qmsg[64] = "PLAYER:";
 
 void loop() {
-
+  vTaskDelay(1000);
+  Serial.println(esp_get_free_internal_heap_size());
 }

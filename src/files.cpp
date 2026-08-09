@@ -63,9 +63,9 @@ void setupLibrary() {
 
 void taskFileData(void *param) {
     //run once to read current file
-    Serial.println( (*(static_cast<std::string*>(param))).c_str() );
-    currentSong = song( *(static_cast<std::string*>(param)) );
-    Serial.println(currentSong.id3v1.exists);
+    
+    // currentSong = song( *(static_cast<std::string*>(param)) );
+    // Serial.println(currentSong.id3v1.exists);
 
     vTaskDelete(NULL);
 }

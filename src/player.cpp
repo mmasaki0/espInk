@@ -153,9 +153,9 @@ void avrcCallback(uint8_t id, bool isReleased) {
 }
 
 // takes new path, reopen if mutex is available
-void changeCurrentFile(const char* path) {
+void changeCurrentFile(std::string& path) {
     if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
-        if(SD.exists(path)) {
+        if(SD.exists(path.c_str())) {
             currentFile.close();
 
             // NEED TO SET VOLUME TO 0 then back to 1 after because garbage leaks through 
@@ -164,12 +164,12 @@ void changeCurrentFile(const char* path) {
             bufferProcessed.reset();
 
 
-            xTaskCreatePinnedToCore(taskFileData, "taskFileData", 1024*4, &path, 4, &taskHandleFileData, 1);
-            // currentSong = song(path);
+            // xTaskCreatePinnedToCore(taskFileData, "taskFileData", 1024*4, NULL, 4, &taskHandleFileData, 1);
+            currentSong = song(path);
             // Serial.println(currentSong.id3v2.exists); Serial.println(currentSong.id3v2.size);
             
             setupPipeline();
-            currentFile = SD.open(path);
+            currentFile = SD.open(path.c_str());
             xSemaphoreGive(mutexCurrentFile);
             volume.setVolume(1);
         } else {
@@ -219,7 +219,7 @@ void taskAudioControl(void *param) {
             }
             else if(strcmp(msg, "FORWARD") == 0) {
                 if(!future.empty()) {
-                    changeCurrentFile(libraryPaths.at(future.front()).data());
+                    changeCurrentFile(libraryPaths.at(future.front()));
                     future.pop_front();
                 } else {
                     playing = 0;
@@ -228,7 +228,7 @@ void taskAudioControl(void *param) {
             }
             else if(strcmp(msg, "BACKWARD") == 0) {
                 if(!history.empty()) {
-                    changeCurrentFile(libraryPaths.at(history.front()).data());
+                    changeCurrentFile(libraryPaths.at(history.front()));
                     history.pop();
                 } else {
                     seekCurrentFile(0);

@@ -64,15 +64,14 @@ struct ID3v2Tag {
 
     int size;
 
-    std::string TIT2; // title
-    std::string TPE1; // artists
-    std::string TPE2; // album artist
-    std::string TALB; // album
-    std::string TYER; // year
-    std::string TRCK; // track number
-    std::string USLT; // unsynced lyrics
-
-    std::vector<char> APIC; // album cover art
+    std::vector<char, AllocatorSTLPSRAM<char>> TIT2; // title
+    std::vector<char, AllocatorSTLPSRAM<char>> TPE1; // artists
+    std::vector<char, AllocatorSTLPSRAM<char>> TPE2; // album artist
+    std::vector<char, AllocatorSTLPSRAM<char>> TALB; // album
+    std::vector<char, AllocatorSTLPSRAM<char>> TYER; // year
+    std::vector<char, AllocatorSTLPSRAM<char>> TRCK; // track number
+    std::vector<char, AllocatorSTLPSRAM<char>> USLT; // unsynced lyrics
+    std::vector<char, AllocatorSTLPSRAM<char>> APIC; // album cover art
 };
 
 struct VBR {
@@ -127,22 +126,85 @@ struct song {
         File file = SD.open(path.c_str());
 
         if(file.size() > 10) {
-            std::vector<char> buffer(10);
+            char header[10]; //begin use as id3v2 header
+            // std::vector<char, AllocatorSTLPSRAM<char>> frameData;
 
-            file.readBytes(buffer.data(), 10);
+            file.readBytes(header, 10);
 
-            if(memcmp(buffer.data(), "ID3", 3) == 0) {
+            if(memcmp(header, "ID3", 3) == 0) {
                 //has ID3v2 tag
                 id3v2.exists = true;
-                id3v2.size = (buffer.at(6) << 21) | (buffer.at(7) << 14) | (buffer.at(8) << 7) | buffer.at(9);
+                // Serial.print((uint8_t)header[0]); Serial.print(" "); Serial.print((uint8_t)header[1]); Serial.print(" "); Serial.print((uint8_t)header[2]); Serial.print(" "); Serial.print((uint8_t)header[3]); Serial.print(" "); Serial.print((uint8_t)header[4]); Serial.print(" "); Serial.print((uint8_t)header[5]); Serial.print(" "); Serial.print((uint8_t)header[6]); Serial.print(" "); Serial.print((uint8_t)header[7]); Serial.print(" "); Serial.print((uint8_t)header[8]); Serial.print(" "); Serial.println((uint8_t)header[9]);
+                id3v2.size = (header[6] << 21) | (header[7] << 14) | (header[8] << 7) | header[9];
+                // Serial.println(id3v2.size);
+                
+                //repurpose header for frame headers
+                while(file.position() < id3v2.size) {
+                    // Serial.println(file.position());
+                    size_t bytesRead = file.readBytes(header, 10);
+                    if(bytesRead == 10) {
+                        Serial.print(header[0]); Serial.print(header[1]); Serial.print(header[2]); Serial.print(header[3]);
+                        int frameSize = (header[4] << 24) | (header[5] << 16) | (header[6] << 8) | header[7];   
+                        Serial.println(frameSize);
 
-                for(int i = 11; i < id3v2.size; i++) {
-                    buffer.clear();
+                        if(frameSize <= 1024 * 8) {
+                            // read data into memory if of interest
 
-                    file.readBytes(buffer.data(), 10);
-                    Serial.println(buffer.at(4));
-                    // int frameSize = (buffer.at(4) << 21) | (buffer.at(5) << 14) | (buffer.at(6) << 7) | buffer.at(7);
-                    // Serial.println(frameSize);
+                            if(memcmp(header, "TIT2", 4) == 0) {
+                                id3v2.TIT2.resize(frameSize);
+                                file.readBytes(id3v2.TIT2.data(), frameSize);
+                                Serial.println("copied TIT2");
+                            } else if(memcmp(header, "TPE1", 4) == 0) {
+                                id3v2.TPE1.resize(frameSize);
+                                file.readBytes(id3v2.TPE1.data(), frameSize);
+                                Serial.println("copied TPE1");
+                            } else if(memcmp(header, "TPE2", 4) == 0) {
+                                id3v2.TPE2.resize(frameSize);
+                                file.readBytes(id3v2.TPE2.data(), frameSize);
+                                Serial.println("copied TPE2");
+                            } else if(memcmp(header, "TALB", 4) == 0) {
+                                id3v2.TALB.resize(frameSize);
+                                file.readBytes(id3v2.TALB.data(), frameSize);
+                                Serial.println("copied TALB");
+                            } else if(memcmp(header, "TYER", 4) == 0) {
+                                id3v2.TYER.resize(frameSize);
+                                file.readBytes(id3v2.TYER.data(), frameSize);
+                                Serial.println("copied TYER");
+                            } else if(memcmp(header, "TRCK", 4) == 0) {
+                                id3v2.TRCK.resize(frameSize);
+                                file.readBytes(id3v2.TRCK.data(), frameSize);
+                                Serial.println("copied TRCK");
+                            } else if(memcmp(header, "USLT", 4) == 0) {
+                                id3v2.USLT.resize(frameSize);
+                                file.readBytes(id3v2.USLT.data(), frameSize);
+                                Serial.println("copied USLT");
+                            } else if(memcmp(header, "APIC", 4) == 0) {
+                                id3v2.APIC.resize(frameSize);
+                                file.readBytes(id3v2.APIC.data(), frameSize);
+                                Serial.println("copied APIC");
+                            } else {
+                                //skip
+                                if(frameSize == 0) {
+                                    file.seek(file.size());
+                                } else {
+                                    file.seek(file.position() + frameSize);
+                                }
+                                
+                            }
+                        } else {
+                            //skip
+                            file.seek(file.position() + frameSize);
+                        }
+
+                    } else {
+                        // stop reading
+                        file.seek(file.size());
+                        Serial.println("stop");
+                    }
+                }
+                    
+                    
+
                 //     // char tag[5];
                 //     // memcpy(tag, buffer.data(), 4);
                 //     // tag[4] = '\0';
@@ -150,14 +212,13 @@ struct song {
 
                 //     i += frameSize + 10;
                 //     file.seek(file.position() + frameSize + 10);
-                }
+                // }
 
             }
         }
 
 
         file.close();
-            id3v2.exists = false;
     }
 
     bool loadAPIC() {

@@ -11,7 +11,7 @@ void preSetup();
 void setupPipeline();
 void setupA2DP();
 
-void changeCurrentFile(const std::string path);
+void changeCurrentFile(std::string &path);
 void futureAdd(uint16_t id, std::string loc);
 
 void taskAudio(void *param);
