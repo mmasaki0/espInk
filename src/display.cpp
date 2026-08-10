@@ -134,6 +134,7 @@ void setupDisplay() {
         // display.drawXBitmap(0, 50, bitmap::arcane, 240, 240, GxEPD_BLACK);
         u8g2.setCursor(10, 120);
         u8g2.drawUTF8(10, 120, "こんにちは안녕하세요你好");
+        u8g2.drawUTF8(10, 136, "GIVĒON");
     } while (display.nextPage());
     
 }
