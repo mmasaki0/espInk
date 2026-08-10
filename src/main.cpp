@@ -56,6 +56,6 @@ void setup() {
 char qmsg[64] = "PLAYER:";
 
 void loop() {
-  vTaskDelay(1000);
-  Serial.println(esp_get_free_internal_heap_size());
+  // vTaskDelay(1000);
+  // Serial.println(esp_get_free_internal_heap_size());
 }

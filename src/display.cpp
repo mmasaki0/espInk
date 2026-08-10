@@ -4,12 +4,12 @@
 #include <tuple>
 
 #include <GxEPD2_BW.h>
-#include <Fonts/FreeMono12pt7b.h>
-#include <Fonts/FreeMonoBold9pt7b.h>
-#include <Fonts/FreeSerif9pt7b.h>
-#include <Fonts/FreeSerifBold9pt7b.h>
+#include <U8g2_for_Adafruit_GFX.h>
+
 
 #include "bitmaps.h"
+#include "unifont_latincjk.h"
+
 
 #define EPD_BUSY 37
 #define EPD_RST 27
@@ -44,7 +44,7 @@ std::map<uint8_t, std::tuple<uint16_t, uint16_t>> playerSelectPos = {
 };
 
 GxEPD2_BW<GxEPD2_370_GDEY037T03, GxEPD2_370_GDEY037T03::HEIGHT> display(GxEPD2_370_GDEY037T03(EPD_CS, EPD_DC, EPD_RST, EPD_BUSY));
-
+U8G2_FOR_ADAFRUIT_GFX u8g2;
 
 void taskDisplay(void *param) {
     int refreshCounter = 0;
@@ -118,14 +118,22 @@ void setupDisplay() {
 
     display.init(115200);
     display.setRotation(2);
-    display.setTextColor(colorFront);
-    display.setFont(&FreeSerif9pt7b);
+    u8g2.begin(display);
+    u8g2.setFont(unifont_latincjk);
+    u8g2.setFontMode(1);
+    u8g2.setForegroundColor(colorFront);
+    // display.setFont(&FreeSerif9pt7b);
     display.setTextWrap(false);
 
+    
+
+    display.setFullWindow();
     display.firstPage();
-    display.setPartialWindow(0, 50, 240, 240);
+    // display.setPartialWindow(0, 50, 240, 240);
     do {
-        display.drawXBitmap(0, 50, bitmap::arcane, 240, 240, GxEPD_BLACK);
+        // display.drawXBitmap(0, 50, bitmap::arcane, 240, 240, GxEPD_BLACK);
+        u8g2.setCursor(10, 120);
+        u8g2.drawUTF8(10, 120, "こんにちは안녕하세요你好");
     } while (display.nextPage());
     
 }
