@@ -6,7 +6,7 @@
 #include <GxEPD2_BW.h>
 #include <U8g2_for_Adafruit_GFX.h>
 
-
+#include "files.h"
 #include "bitmaps.h"
 #include "unifont_latincjk.h"
 
@@ -90,8 +90,22 @@ void taskDisplay(void *param) {
                     display.fillScreen(colorFront);
                     // display.drawFastHLine(0, 100, 1, GxEPD_BLACK);
                 } while (display.nextPage());
+            } else if(strcmp(msg, "BOB") == 0) {
+                Serial.println("messaged bob recieved");
+                display.setFullWindow();
+                display.firstPage();
+                do {
+                    display.fillScreen(colorBack);
+                    u8g2.drawUTF8(10, 10, currentSong.id3v2.TIT2.data());
+                    u8g2.drawUTF8(10, 10 + 32, currentSong.id3v2.TPE1.data());
+                    u8g2.drawUTF8(10, 10 + 64, currentSong.id3v2.TALB.data());
+                    u8g2.drawUTF8(10, 10 + 96, currentSong.id3v2.TRCK.data());
+                    u8g2.drawUTF8(10, 10 + 128, currentSong.id3v2.TYER.data());
+                } while(display.nextPage());
+                
             }
 
+            // this still full screen refreshes even if the previous one was already a fullscreen refresh, maybe fix later
             strcpy(prevMsg, msg);
             lastRefresh = xTaskGetTickCount();
             refreshCounter++;
@@ -138,24 +152,3 @@ void setupDisplay() {
     } while (display.nextPage());
     
 }
-
-
-
-void displayWriteText(std::string text, int x, int y) {
-    int16_t x1, y1;
-    uint16_t w, h;
-
-    
-
-    display.getTextBounds(text.c_str(), x, y, &x1, &y1, &w, &h);
-
-    display.setPartialWindow(x1, y1, w, h);
-
-    display.firstPage();
-    do {
-    display.setCursor(x, y);
-    display.fillScreen(colorBack);
-    display.print(text.c_str());
-    } while (display.nextPage()); // Automatically renders and flushes over SPI
-}
-

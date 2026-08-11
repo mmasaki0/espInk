@@ -127,7 +127,7 @@ struct song {
 
         if(file.size() > 10) {
             char header[10]; //begin use as id3v2 header
-            // std::vector<char, AllocatorSTLPSRAM<char>> frameData;
+            std::vector<char, AllocatorSTLPSRAM<char>> frameData;
 
             file.readBytes(header, 10);
 
@@ -142,57 +142,240 @@ struct song {
                 while(file.position() < id3v2.size) {
                     // Serial.println(file.position());
                     size_t bytesRead = file.readBytes(header, 10);
-                    if(bytesRead == 10) {
+                    if(bytesRead == 10 && header[0] != 0) {
                         Serial.print(header[0]); Serial.print(header[1]); Serial.print(header[2]); Serial.print(header[3]);
                         int frameSize = (header[4] << 24) | (header[5] << 16) | (header[6] << 8) | header[7];   
+
                         Serial.println(frameSize);
 
-                        if(frameSize <= 1024 * 8) {
-                            // read data into memory if of interest
+                        std::vector<char, AllocatorSTLPSRAM<char>>* outputPtr = nullptr;
 
-                            if(memcmp(header, "TIT2", 4) == 0) {
-                                id3v2.TIT2.resize(frameSize);
-                                file.readBytes(id3v2.TIT2.data(), frameSize);
-                                Serial.println("copied TIT2");
+                        //check if tag is of interest and set output
+                        if(frameSize <= 1024 * 8) {
+                            //limit max size of data reading
+                            if(memcmp(header, "TIT2", 4) == 0 ) {
+                                outputPtr = &id3v2.TIT2;
+                                // Serial.println("pointing to TIT2");
                             } else if(memcmp(header, "TPE1", 4) == 0) {
-                                id3v2.TPE1.resize(frameSize);
-                                file.readBytes(id3v2.TPE1.data(), frameSize);
-                                Serial.println("copied TPE1");
+                                outputPtr = &id3v2.TPE1;
+                                // Serial.println("pointing to TPE1");
                             } else if(memcmp(header, "TPE2", 4) == 0) {
-                                id3v2.TPE2.resize(frameSize);
-                                file.readBytes(id3v2.TPE2.data(), frameSize);
-                                Serial.println("copied TPE2");
+                                outputPtr = &id3v2.TPE2;
+                                // Serial.println("pointing to TPE2");
                             } else if(memcmp(header, "TALB", 4) == 0) {
-                                id3v2.TALB.resize(frameSize);
-                                file.readBytes(id3v2.TALB.data(), frameSize);
-                                Serial.println("copied TALB");
+                                outputPtr = &id3v2.TALB;
+                                // Serial.println("pointing to TALB");
                             } else if(memcmp(header, "TYER", 4) == 0) {
-                                id3v2.TYER.resize(frameSize);
-                                file.readBytes(id3v2.TYER.data(), frameSize);
-                                Serial.println("copied TYER");
+                                outputPtr = &id3v2.TYER;
+                                // Serial.println("pointing to TYER");
                             } else if(memcmp(header, "TRCK", 4) == 0) {
-                                id3v2.TRCK.resize(frameSize);
-                                file.readBytes(id3v2.TRCK.data(), frameSize);
-                                Serial.println("copied TRCK");
+                                outputPtr = &id3v2.TRCK;
+                                // Serial.println("pointing to TRCK");
                             } else if(memcmp(header, "USLT", 4) == 0) {
-                                id3v2.USLT.resize(frameSize);
-                                file.readBytes(id3v2.USLT.data(), frameSize);
-                                Serial.println("copied USLT");
+                                outputPtr = &id3v2.USLT;
+                                // Serial.println("pointing to USLT");
                             } else if(memcmp(header, "APIC", 4) == 0) {
-                                id3v2.APIC.resize(frameSize);
-                                file.readBytes(id3v2.APIC.data(), frameSize);
-                                Serial.println("copied APIC");
+                                outputPtr = &id3v2.APIC;
+                                // Serial.println("pointing to APIC");
+                            }
+
+                            
+                            if(outputPtr != nullptr) {
+                                Serial.println("not null");
+                                //tag is of interest, read contents
+                                frameData.resize(frameSize);
+                                file.readBytes(frameData.data(), frameSize);
+
+                                if(header[0] == 'T') {
+                                    //text tag
+                                    switch(frameData[0]) {
+                                        case 0x00: {
+                                            //ISO-8859-1 (ASCII)
+                                            // Serial.println("case 0");
+                                            outputPtr->resize(frameSize - 1);
+                                            memcpy(outputPtr->data(), frameData.data() + 1, frameSize - 1);
+                                            break;
+                                        }
+                                        case 0x01: {
+                                            //UTF16 with BOM
+                                            // Serial.println("case 1");
+                                            int decodeIndex = 1; //skip the first encoding type byte
+                                            bool bigEndian = true; //assume big endian as default
+
+                                            //check BOM
+                                            if(frameData.size() < 3) {break;}
+
+                                            if(frameData.data()[1] == 0xFE && frameData.data()[2] == 0xFF) {
+                                                Serial.println("manual select endian 1");
+                                                decodeIndex += 2;
+                                            } else if(frameData.data()[1] == 0xFF && frameData.data()[2] == 0xFE) {
+                                                Serial.println("manual select endian 2");
+                                                bigEndian = false;
+                                                decodeIndex += 2;
+                                            }
+
+                                            // convert utf16 to utf8
+                                            while(decodeIndex + 1 < frameSize) {
+                                                uint32_t codepoint;
+                                                uint16_t first16Unit; 
+
+                                                if(bigEndian) {
+                                                    first16Unit = (static_cast<uint8_t>(frameData.data()[decodeIndex]) << 8) | static_cast<uint8_t>(frameData.data()[decodeIndex + 1]); 
+                                                } else {
+                                                    first16Unit = static_cast<uint8_t>(frameData.data()[decodeIndex]) | (static_cast<uint8_t>(frameData.data()[decodeIndex + 1]) << 8);
+                                                }
+                                                
+                                                // decode codepoint from utf16
+                                                if(first16Unit >= 0xD800 && first16Unit <= 0xDBFF) {
+                                                    //high surrogate
+                                                    uint16_t second16Unit;
+
+                                                    if(decodeIndex + 3 > frameSize) {break;}
+
+                                                    // find low surrogate
+                                                    if(bigEndian) {
+                                                        second16Unit = (static_cast<uint8_t>(frameData.data()[decodeIndex + 2]) << 8) | static_cast<uint8_t>(frameData.data()[decodeIndex + 3]); 
+                                                    } else {
+                                                        second16Unit = static_cast<uint8_t>(frameData.data()[decodeIndex + 2]) | (static_cast<uint8_t>(frameData.data()[decodeIndex + 3]) << 8);
+                                                    }
+
+                                                    if(second16Unit >= 0xDC00 && second16Unit <= 0xDFFF) {
+                                                        codepoint = (((first16Unit - 0xD800) << 10) | (second16Unit - 0xDC00)) + 0x10000;
+                                                        decodeIndex += 4;
+                                                    } else {
+                                                        decodeIndex = frameSize;
+                                                        break;
+                                                    }
+                                                    
+                                                } else {
+                                                    // one 16bit character
+                                                    codepoint = first16Unit;
+
+                                                    decodeIndex += 2;
+                                                } 
+
+                                                // encode codepoint to utf8
+                                                if(codepoint < 128) {
+                                                    // 1 byte
+                                                    outputPtr->push_back(static_cast<char>(codepoint));
+                                                } else if(codepoint < 2048) {
+                                                    // 2 bytes
+                                                    outputPtr->push_back(static_cast<char>( 0xC0 | (codepoint >> 6) ));
+                                                    outputPtr->push_back(static_cast<char>( 0x80 | (codepoint & 0x3F) ));
+                                                } else if(codepoint < 65536) {
+                                                    // 3 bytes
+                                                    outputPtr->push_back(static_cast<char>( 0xE0 | (codepoint >> 12) ));
+                                                    outputPtr->push_back(static_cast<char>( 0x80 | ((codepoint >> 6) & 0x3F ) ));
+                                                    outputPtr->push_back(static_cast<char>( 0x80 | (codepoint & 0x3F) ));
+                                                } else {
+                                                    outputPtr->push_back(static_cast<char>( 0xF0 | (codepoint >> 18) ));
+                                                    outputPtr->push_back(static_cast<char>( 0x80 | ((codepoint >> 12) & 0x3F ) ));
+                                                    outputPtr->push_back(static_cast<char>( 0x80 | ((codepoint >> 6) & 0x3F ) ));
+                                                    outputPtr->push_back(static_cast<char>( 0x80 | (codepoint & 0x3F) ));
+                                                }
+                                            }
+                                            break;
+                                        }
+                                        case 0x02: {
+                                            //UTF16BE without BOM
+                                            //should be big endian without bom but still check for bom
+                                            // Serial.println("case 2");
+                                            int decodeIndex = 1;
+                                            bool bigEndian = true; //assume big endian as default
+
+                                            //check BOM
+                                            if(frameData.size() < 3) {break;}
+
+                                            if(frameData.data()[1] == 0xFE && frameData.data()[2] == 0xFF) {
+                                                decodeIndex += 2;
+                                            } else if(frameData.data()[1] == 0xFF && frameData.data()[2] == 0xFE) {
+                                                decodeIndex += 2;
+                                            }                                                                                                       
+
+                                            // convert utf16 to utf8
+                                            while(decodeIndex + 1 < frameSize) {
+                                                uint32_t codepoint;
+                                                uint16_t first16Unit; 
+
+                                                if(bigEndian) {
+                                                    first16Unit = (static_cast<uint8_t>(frameData.data()[decodeIndex]) << 8) | static_cast<uint8_t>(frameData.data()[decodeIndex + 1]); 
+                                                } else {
+                                                    first16Unit = static_cast<uint8_t>(frameData.data()[decodeIndex]) | (static_cast<uint8_t>(frameData.data()[decodeIndex + 1]) << 8);
+                                                }
+                                                
+                                                // decode codepoint from utf16
+                                                if(first16Unit >= 0xD800 && first16Unit <= 0xDBFF) {
+                                                    //high surrogate
+                                                    uint16_t second16Unit;
+
+                                                    if(decodeIndex + 3 > frameSize) {break;}
+
+                                                    // find low surrogate
+                                                    if(bigEndian) {
+                                                        second16Unit = (static_cast<uint8_t>(frameData.data()[decodeIndex + 2]) << 8) | static_cast<uint8_t>(frameData.data()[decodeIndex + 3]); 
+                                                    } else {
+                                                        second16Unit = static_cast<uint8_t>(frameData.data()[decodeIndex + 2]) | (static_cast<uint8_t>(frameData.data()[decodeIndex + 3]) << 8);
+                                                    }
+
+                                                    if(second16Unit >= 0xDC00 && second16Unit <= 0xDFFF) {
+                                                        codepoint = (((first16Unit - 0xD800) << 10) | (second16Unit - 0xDC00)) + 0x10000;
+                                                        decodeIndex += 4;
+                                                    } else {
+                                                        decodeIndex = frameSize;
+                                                        break;
+                                                    }
+                                                    
+                                                } else {
+                                                    // one 16bit character
+                                                    codepoint = first16Unit;
+
+                                                    decodeIndex += 2;
+                                                } 
+
+                                                // encode codepoint to utf8
+                                                if(codepoint < 128) {
+                                                    // 1 byte
+                                                    outputPtr->push_back(static_cast<char>(codepoint));
+                                                } else if(codepoint < 2048) {
+                                                    // 2 bytes
+                                                    outputPtr->push_back(static_cast<char>( 0xC0 | (codepoint >> 6) ));
+                                                    outputPtr->push_back(static_cast<char>( 0x80 | (codepoint & 0x3F) ));
+                                                } else if(codepoint < 65536) {
+                                                    // 3 bytes
+                                                    outputPtr->push_back(static_cast<char>( 0xE0 | (codepoint >> 12) ));
+                                                    outputPtr->push_back(static_cast<char>( 0x80 | ((codepoint >> 6) & 0x3F ) ));
+                                                    outputPtr->push_back(static_cast<char>( 0x80 | (codepoint & 0x3F) ));
+                                                } else {
+                                                    outputPtr->push_back(static_cast<char>( 0xF0 | (codepoint >> 18) ));
+                                                    outputPtr->push_back(static_cast<char>( 0x80 | ((codepoint >> 12) & 0x3F ) ));
+                                                    outputPtr->push_back(static_cast<char>( 0x80 | ((codepoint >> 6) & 0x3F ) ));
+                                                    outputPtr->push_back(static_cast<char>( 0x80 | (codepoint & 0x3F) ));
+                                                }
+                                            }
+                                            break;
+                                        }
+                                        case 0x03: {
+                                            //UTF8
+                                            // Serial.println("case 3");
+                                            outputPtr->resize(frameSize - 1);
+                                            memcpy(outputPtr->data(), frameData.data() + 1, frameSize - 1);
+                                            break;
+                                        }
+                                        default:
+                                            break;
+                                    }
+
+
+                                } else if(memcmp(header, "APIC", 4) == 0) {
+                                    //attached picture tag
+                                    file.readBytes(id3v2.APIC.data(), frameSize);
+                                }
                             } else {
                                 //skip
-                                if(frameSize == 0) {
-                                    file.seek(file.size());
-                                } else {
-                                    file.seek(file.position() + frameSize);
-                                }
-                                
+                                file.seek(file.position() + frameSize);
                             }
                         } else {
-                            //skip
+                            // tag too large, skip to next tag
                             file.seek(file.position() + frameSize);
                         }
 
@@ -202,22 +385,9 @@ struct song {
                         Serial.println("stop");
                     }
                 }
-                    
-                    
-
-                //     // char tag[5];
-                //     // memcpy(tag, buffer.data(), 4);
-                //     // tag[4] = '\0';
-                //     // Serial.println(tag);
-
-                //     i += frameSize + 10;
-                //     file.seek(file.position() + frameSize + 10);
-                // }
 
             }
         }
-
-
         file.close();
     }
 

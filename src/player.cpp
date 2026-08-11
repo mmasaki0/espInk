@@ -32,7 +32,7 @@ EncodedAudioStream decoder(&helix);
 ResampleStreamT<LinearInterpolator> resampler;
 FadeStream fade;
 VolumeStream volume;
-StreamCopy copySongToPipeline(pipeline, currentFile, 1024*4);
+StreamCopy copySongToPipeline(pipeline, currentFile, 1024*6);
 BluetoothA2DPSource a2dp_source;
 
 static TaskHandle_t taskHandleAudio = NULL;
@@ -166,6 +166,8 @@ void changeCurrentFile(std::string& path) {
 
             // xTaskCreatePinnedToCore(taskFileData, "taskFileData", 1024*4, NULL, 4, &taskHandleFileData, 1);
             currentSong = song(path);
+            char qmsg[64] = "BOB";
+            xQueueSend(queueDisplay, qmsg, 0);
             // Serial.println(currentSong.id3v2.exists); Serial.println(currentSong.id3v2.size);
             
             setupPipeline();
