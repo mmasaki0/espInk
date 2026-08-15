@@ -21,5 +21,5 @@ extern StreamCopy copySongToPipeline;
 extern QueueStream<uint8_t> streamProcessed;
 extern MeasuringStream measure;
 extern File currentFile;
-
+extern BufferRTOS<uint8_t> bufferProcessed;
 extern std::atomic_int playing;

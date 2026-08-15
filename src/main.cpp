@@ -50,11 +50,13 @@ void setup() {
   futureAdd(21, "front");
   futureAdd(22, "front");
   futureAdd(23, "front");
+  Serial.print("buffer:"); Serial.println(esp_ptr_internal(&bufferProcessed));
 }
 
 char qmsg[64] = "PLAYER:";
 
 void loop() {
-  // vTaskDelay(1000);
-  // Serial.println(esp_get_free_internal_heap_size());
+  vTaskDelay(1000);
+  Serial.println(bufferProcessed.levelPercent());
+  Serial.println(esp_get_free_internal_heap_size());
 }
