@@ -292,7 +292,7 @@ void taskAudioControl(void *param) {
     vTaskDelete(NULL);
 }
 
-void taskAudio(void *param) {
+IRAM_ATTR void taskAudio(void *param) {
     while(1) {
         if(playing) {
             if(xSemaphoreTake(mutexCurrentFile, portMAX_DELAY) == pdTRUE) {
